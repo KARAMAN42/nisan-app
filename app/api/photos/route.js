@@ -4,26 +4,27 @@ import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
-global.cloudPhotos = global.cloudPhotos || [];
-
 export async function GET() {
   const photoUrls = [];
   let isBlobActive = false;
 
-  // 1. Fetch from Vercel Blob if available
+  // 1. Vercel Blob'dan fotoğrafları çekiyoruz
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     try {
       const { list } = await import('@vercel/blob');
       const { blobs } = await list();
+
+      // Private store olduğu için indirme/görüntüleme için url'leri doğrudan alıyoruz
+      // Vercel Blob private url'leri otomatik yetkilendirme barındırır veya doğrudan sunulabilir
       const blobUrls = blobs.map(b => b.url);
       photoUrls.push(...blobUrls);
       isBlobActive = true;
     } catch (err) {
-      console.error("Error listing Vercel Blobs:", err);
+      console.error("Vercel Blob listeleme hatası:", err);
     }
   }
 
-  // 2. Fetch from local filesystem (if accessible)
+  // 2. Lokal dosya sistemi yedeği
   try {
     const uploadDir = path.join(process.cwd(), 'public/uploads');
     await fs.access(uploadDir);
@@ -42,15 +43,9 @@ export async function GET() {
     fileStats.sort((a, b) => b.time - a.time);
     photoUrls.push(...fileStats.map(f => f.url));
   } catch (fsErr) {
-    // Local directory doesn't exist or is inaccessible
+    // Lokal dizin yoksa geç
   }
 
-  // 3. Append global cloud memory fallbacks
-  if (global.cloudPhotos && global.cloudPhotos.length > 0) {
-    photoUrls.push(...global.cloudPhotos);
-  }
-
-  // Remove duplicates while keeping order
   const uniquePhotos = Array.from(new Set(photoUrls));
 
   return NextResponse.json({
