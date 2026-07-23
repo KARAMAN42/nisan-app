@@ -2,13 +2,44 @@
 
 import { useState, useRef } from "react";
 import Head from "next/head";
-import { upload } from "@vercel/blob/client";
 
 export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+
+  // Fotoğrafı yüklemeden önce tarayıcıda 1920 piksele küçülten fonksiyon (Boyut sınırına takılmamak için)
+  const resizeImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          const maxSize = 1920;
+
+          if (width > height && width > maxSize) {
+            height *= maxSize / width;
+            width = maxSize;
+          } else if (height > width && height > maxSize) {
+            width *= maxSize / height;
+            height = maxSize;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+      };
+    });
+  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
@@ -19,11 +50,17 @@ export default function Home() {
     setError(null);
 
     try {
-      // Fotoğrafı sunucuya uğratmadan direkt Blob'a yüklüyoruz
-      await upload(file.name, file, {
-        access: 'public',
-        handleUploadUrl: '/api/upload',
+      const compressedDataUrl = await resizeImage(file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: compressedDataUrl, filename: file.name }),
       });
+
+      if (!res.ok) {
+        throw new Error("Yükleme başarısız oldu.");
+      }
 
       setSuccess(true);
     } catch (err) {
@@ -48,8 +85,6 @@ export default function Home() {
       </Head>
 
       <div className="content-container">
-
-        {/* Central Photo */}
         <div className="photo-section anim-fade-up delay-1">
           <img
             src="/childhood-photo.png"
@@ -61,7 +96,6 @@ export default function Home() {
           />
         </div>
 
-        {/* Upload Section */}
         <div className="upload-section anim-fade-up delay-2">
           <button
             className="elegant-upload-btn"
@@ -106,20 +140,16 @@ export default function Home() {
           )}
         </div>
 
-        {/* Footer Area */}
         <div className="footer-area anim-fade-up delay-3">
           <div className="names-container-inline">
             <svg width="50" height="15" viewBox="0 0 100 20" className="curly-line-left">
               <path d="M 0,15 Q 50,15 100,5" fill="none" stroke="var(--color-accent)" strokeWidth="1.2" />
             </svg>
-
             <span className="inline-names">Yusuf & Şevval</span>
-
             <svg width="50" height="15" viewBox="0 0 100 20" className="curly-line-right">
               <path d="M 0,5 Q 50,15 100,15" fill="none" stroke="var(--color-accent)" strokeWidth="1.2" />
             </svg>
           </div>
-
           <div className="heart-graphic">
             <svg viewBox="0 0 100 100" fill="none" stroke="var(--color-accent)" strokeWidth="1.2">
               <path d="M 50,80 C 50,80 30,50 35,35 C 38,25 50,30 50,45 C 50,30 62,25 65,35 C 70,50 50,80 50,80 Z" />
