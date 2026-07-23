@@ -14,9 +14,7 @@ export async function POST(request) {
 
     const uniqueFilename = `nisan-${Date.now()}-${filename || 'foto.jpg'}`;
 
-    const blob = await put(uniqueFilename, buffer, {
-      access: 'unprotected',
-    });
+    const blob = await put(uniqueFilename, buffer);
 
     return NextResponse.json({ success: true, url: blob.url });
   } catch (error) {
