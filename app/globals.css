@@ -1,0 +1,216 @@
+:root {
+  --color-white: #ffffff;
+  --color-black: #1a1a1a;
+  --color-gray: #666666;
+  --color-accent: #1a1a1a;
+  --color-button: #1a1a1a;
+  --color-button-text: #ffffff;
+  
+  --font-heading: var(--font-playfair), serif;
+  --font-script: var(--font-great-vibes), cursive;
+  --font-body: var(--font-lato), sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html, body {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden; /* Lock vertical scroll */
+  touch-action: manipulation;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-white);
+  color: var(--color-black);
+  -webkit-font-smoothing: antialiased;
+}
+
+.minimalist-wrapper {
+  max-width: 450px;
+  margin: 0 auto;
+  height: 100vh;
+  height: 100dvh;
+  position: relative;
+  padding: 1.2rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Animations */
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translateY(15px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseSoft {
+  0% { box-shadow: 0 0 0 0 rgba(26, 26, 26, 0.3); }
+  70% { box-shadow: 0 0 0 12px rgba(26, 26, 26, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(26, 26, 26, 0); }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+  100% { transform: translateY(0px); }
+}
+
+.anim-fade-up {
+  opacity: 0;
+  animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.delay-1 { animation-delay: 0.15s; }
+.delay-2 { animation-delay: 0.3s; }
+.delay-3 { animation-delay: 0.45s; }
+
+/* Centered & Symmetrically Clustered Layout */
+.content-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  height: 100%;
+  gap: 1.2rem;
+}
+
+/* Photo Section - Made Larger as the Focal Point */
+.photo-section {
+  width: 100%;
+  max-width: 270px; /* Enlarge photo container */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.center-photo {
+  max-width: 100%;
+  max-height: 40vh; /* Enlarge photo height */
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16); /* Deeper shadow to pop out */
+  animation: float 6s ease-in-out infinite;
+  display: block;
+}
+
+/* Upload Section */
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 0.5rem;
+}
+
+/* Elegant Pill Button */
+.elegant-upload-btn {
+  background-color: var(--color-button);
+  color: var(--color-button-text);
+  border: none;
+  border-radius: 50px;
+  padding: 1rem 2.6rem;
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  animation: pulseSoft 2.5s infinite;
+  box-shadow: 0 8px 20px rgba(26, 26, 26, 0.2);
+}
+
+.elegant-upload-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(26, 26, 26, 0.3);
+  background-color: #000000;
+}
+
+.elegant-upload-btn:active {
+  transform: translateY(0);
+}
+
+.file-input {
+  display: none;
+}
+
+.instruction-text {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: var(--color-gray);
+  line-height: 1.5;
+}
+
+/* Footer Area */
+.footer-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 0.3rem;
+}
+
+/* Inline Names Layout */
+.names-container-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 10px;
+}
+
+.inline-names {
+  font-family: var(--font-script);
+  font-size: 2rem;
+  color: var(--color-accent);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.curly-line-left, .curly-line-right {
+  opacity: 0.7;
+}
+
+.heart-graphic {
+  width: 30px;
+  height: 30px;
+  opacity: 0.8;
+  animation: float 5s ease-in-out infinite 1s;
+}
+
+/* Utilities */
+.success-msg {
+  color: #4caf50;
+  font-weight: 500;
+  font-size: 0.95rem;
+  animation: fadeUp 0.5s ease forwards;
+}
+
+.error-msg {
+  color: #f44336;
+  font-size: 0.9rem;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: var(--color-white);
+  border-radius: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
