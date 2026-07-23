@@ -9,15 +9,13 @@ export async function POST(request) {
       return NextResponse.json({ error: "Fotoğraf bulunamadı." }, { status: 400 });
     }
 
-    // Base64 verisini Buffer'a çeviriyoruz
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
     const buffer = Buffer.from(base64Data, 'base64');
 
     const uniqueFilename = `nisan-${Date.now()}-${filename || 'foto.jpg'}`;
 
-    // Doğrudan Blob depoya kaydediyoruz
     const blob = await put(uniqueFilename, buffer, {
-      access: 'public',
+      access: 'unprotected',
     });
 
     return NextResponse.json({ success: true, url: blob.url });
