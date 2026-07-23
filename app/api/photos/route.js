@@ -53,7 +53,7 @@ export async function GET() {
   // Remove duplicates while keeping order
   const uniquePhotos = Array.from(new Set(photoUrls));
 
-  return NextResponse.json({ 
+  return NextResponse.json({
     photos: uniquePhotos,
     diagnostics: {
       hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,

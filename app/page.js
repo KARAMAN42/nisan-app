@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Head from "next/head";
+import { upload } from "@vercel/blob/client";
 
 export default function Home() {
   const [uploading, setUploading] = useState(false);
@@ -17,18 +18,12 @@ export default function Home() {
     setSuccess(false);
     setError(null);
 
-    const formData = new FormData();
-    formData.append("photo", file);
-
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+      // Fotoğrafı sunucuya uğratmadan direkt Blob'a yüklüyoruz
+      await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
       });
-
-      if (!res.ok) {
-        throw new Error("Yükleme başarısız oldu.");
-      }
 
       setSuccess(true);
     } catch (err) {
@@ -53,12 +48,12 @@ export default function Home() {
       </Head>
 
       <div className="content-container">
-        
+
         {/* Central Photo */}
         <div className="photo-section anim-fade-up delay-1">
-          <img 
-            src="/childhood-photo.png" 
-            alt="Yusuf ve Şevval Küçüklük" 
+          <img
+            src="/childhood-photo.png"
+            alt="Yusuf ve Şevval Küçüklük"
             className="center-photo"
             onError={(e) => {
               e.target.src = "https://via.placeholder.com/300x400/eeeeee/999999?text=Fotografiniz+Buraya";
@@ -68,8 +63,8 @@ export default function Home() {
 
         {/* Upload Section */}
         <div className="upload-section anim-fade-up delay-2">
-          <button 
-            className="elegant-upload-btn" 
+          <button
+            className="elegant-upload-btn"
             onClick={handleBtnClick}
             disabled={uploading}
           >
@@ -89,7 +84,7 @@ export default function Home() {
               </>
             )}
           </button>
-          
+
           <input
             type="file"
             accept="image/*"
@@ -97,9 +92,9 @@ export default function Home() {
             ref={fileInputRef}
             onChange={handleFileChange}
           />
-          
+
           <p className="instruction-text">
-            Fotoğraflarınızı yükleyerek bu<br/>
+            Fotoğraflarınızı yükleyerek bu<br />
             güzel anları ölümsüzleştirin.
           </p>
 
@@ -117,7 +112,7 @@ export default function Home() {
             <svg width="50" height="15" viewBox="0 0 100 20" className="curly-line-left">
               <path d="M 0,15 Q 50,15 100,5" fill="none" stroke="var(--color-accent)" strokeWidth="1.2" />
             </svg>
-            
+
             <span className="inline-names">Yusuf & Şevval</span>
 
             <svg width="50" height="15" viewBox="0 0 100 20" className="curly-line-right">
