@@ -1,31 +1,31 @@
-import { handleUpload } from '@vercel/blob/client';
+import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const { image, filename } = await request.json();
 
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async (pathname) => {
-        // Client upload için yetki ve maksimum 50MB dosya sınırı tanımlıyoruz
-        return {
-          allowedContentTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'],
-          maximumSizeInBytes: 50 * 1024 * 1024,
-        };
-      },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
-        console.log("Fotoğraf başarıyla Vercel Blob'a eklendi:", blob.url);
-      },
+    if (!image) {
+      return NextResponse.json({ error: "Fotoğraf bulunamadı." }, { status: 400 });
+    }
+
+    // Base64 verisini Buffer'a çeviriyoruz
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const uniqueFilename = `nisan-${Date.now()}-${filename || 'foto.jpg'}`;
+
+    // Doğrudan Blob depoya kaydediyoruz
+    const blob = await put(uniqueFilename, buffer, {
+      access: 'public',
     });
 
-    return NextResponse.json(jsonResponse);
+    return NextResponse.json({ success: true, url: blob.url });
   } catch (error) {
     console.error("Yükleme hatası:", error);
     return NextResponse.json(
       { error: error.message },
-      { status: 400 },
+      { status: 500 },
     );
   }
 }
