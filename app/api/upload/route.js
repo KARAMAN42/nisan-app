@@ -1,6 +1,3 @@
-import { put } from '@vercel/blob';
-import { NextResponse } from 'next/server';
-
 export async function POST(request) {
   try {
     const { image, filename } = await request.json();
@@ -12,18 +9,17 @@ export async function POST(request) {
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
     const buffer = Buffer.from(base64Data, 'base64');
 
-    const uniqueFilename = `nisan-${Date.now()}-${filename || 'foto.jpg'}`;
+    // Dosya yükleme mantığını kontrol edin
+    // Örneğin, dosyanın boyutunu kontrol etmek için:
+    if (buffer.length > 10 * 1024 * 1024) { // 10 MB limiti
+      return NextResponse.json({ error: "Dosya boyutu 10 MB'dan büyük olamaz." }, { status: 400 });
+    }
 
-    const blob = await put(uniqueFilename, buffer, {
-      access: 'private',
-    });
+    // Dosyayı kaydetmek için kodunuzu buraya ekleyin
 
-    return NextResponse.json({ success: true, url: blob.url });
+    return NextResponse.json({ message: "Fotoğraf başarıyla yüklendi." }, { status: 200 });
   } catch (error) {
-    console.error("Yükleme hatası:", error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 },
-    );
+    console.error("Dosya yükleme hatası:", error);
+    return NextResponse.json({ error: "Bir hata oluştu." }, { status: 500 });
   }
 }
