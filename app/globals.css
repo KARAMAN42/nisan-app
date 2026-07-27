@@ -19,9 +19,8 @@
 
 html, body {
   height: 100%;
-  height: 100dvh;
-  overflow: hidden; /* Lock vertical scroll */
   touch-action: manipulation;
+  /* overflow is NOT hidden globally — only locked on .minimalist-wrapper (main page) */
 }
 
 body {
