@@ -251,19 +251,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      {/* ─── STATUS ─── */}
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0.7rem 1rem 0" }}>
-        {!loading && diagnostics.isBlobActive && (
-          <div style={{ background: "#eafaf1", border: "1px solid #c7f0db", color: "#1b8a5a", borderRadius: 12, padding: "0.6rem 1rem", fontSize: "0.82rem", fontWeight: 500, display: "flex", gap: 6 }}>
-            ✅ Kalıcı Bulut Depolama Aktif — Fotoğraflar güvende!
-          </div>
-        )}
-        {!loading && !diagnostics.isBlobActive && (
-          <div style={{ background: "#fff9e6", border: "1px solid #ffe0b2", color: "#b78103", borderRadius: 12, padding: "0.6rem 1rem", fontSize: "0.82rem" }}>
-            ⚠️ Kalıcı depolama bağlı değil. Vercel panelinden Redeploy yapın.
-          </div>
-        )}
-      </div>
+
 
       {/* ─── GROUPED CONTENT ─── */}
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "0.8rem 0 5rem" }}>
@@ -274,19 +262,30 @@ export default function AdminPage() {
             <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📷</div>
             <div style={{ fontWeight: 500 }}>Henüz fotoğraf yok.</div>
           </div>
-        ) : groups.map((group) => (
-          <div key={group.name} style={{ margin: "0 0 0.5rem", background: "white", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+        ) : groups.map((group, groupIdx) => (
+          <div
+            key={group.name}
+            style={{
+              margin: "0 0 0.8rem",
+              background: "white",
+              borderRadius: 16,
+              overflow: "hidden",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
+              animation: `fadeUp 0.5s ease both ${groupIdx * 0.1}s`,
+              transition: "transform 0.2s ease, box-shadow 0.2s ease",
+            }}
+          >
             {/* Guest Header */}
             <div style={{ padding: "0.9rem 1rem 0.75rem", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
               {/* Row 1: Avatar + Name + Download */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   {/* Avatar */}
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#1a1a1a", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "1rem", flexShrink: 0 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#1a1a1a", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "1rem", flexShrink: 0, transition: "transform 0.2s ease" }}>
                     {group.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: "1rem", lineHeight: 1.2 }}>{group.name}</div>
+                    <div style={{ fontWeight: 700, fontSize: "1rem", lineHeight: 1.2, transition: "color 0.2s ease" }}>{group.name}</div>
                     <div style={{ fontSize: "0.73rem", color: "#bbb", marginTop: 1 }}>{group.photos.length} fotoğraf yükledi</div>
                   </div>
                 </div>
@@ -294,7 +293,23 @@ export default function AdminPage() {
                 <button
                   onClick={() => saveGroupPhotos(group)}
                   disabled={downloading}
-                  style={{ background: "#f2f2f7", border: "none", borderRadius: 20, padding: "0.38rem 0.85rem", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", color: "#1a1a1a", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
+                  style={{
+                    background: "#f2f2f7",
+                    border: "none",
+                    borderRadius: 20,
+                    padding: "0.38rem 0.85rem",
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    color: "#1a1a1a",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    flexShrink: 0,
+                    transition: "transform 0.15s ease, background-color 0.15s ease",
+                  }}
+                  onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.95)")}
+                  onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
                 >
                   {group.photos.length > 1 ? "📥 Tümünü Kaydet" : "📥 Kaydet"}
                 </button>
@@ -302,8 +317,20 @@ export default function AdminPage() {
 
               {/* Row 2: Message bubble - shown directly under name */}
               {group.message && (
-                <div style={{ marginTop: "0.6rem", marginLeft: "50px", background: "#f5f5f5", borderRadius: "0 12px 12px 12px", padding: "0.55rem 0.8rem", fontSize: "0.9rem", color: "#333", lineHeight: 1.45, position: "relative" }}>
-                  <span style={{ position: "absolute", left: -8, top: 8, fontSize: 10, color: "#f5f5f5" }}>◄</span>
+                <div style={{
+                  marginTop: "0.6rem",
+                  marginLeft: "50px",
+                  background: "#f5f5f7",
+                  borderRadius: "0 14px 14px 14px",
+                  padding: "0.6rem 0.95rem",
+                  fontSize: "0.9rem",
+                  color: "#2c2c2e",
+                  lineHeight: 1.45,
+                  position: "relative",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+                  animation: "fadeUp 0.4s ease both 0.15s"
+                }}>
+                  <span style={{ position: "absolute", left: -8, top: 8, fontSize: 10, color: "#f5f5f7" }}>◄</span>
                   {group.message}
                 </div>
               )}
@@ -317,7 +344,17 @@ export default function AdminPage() {
                   <div
                     key={j}
                     onClick={() => openLb(flatIdx)}
-                    style={{ position: "relative", aspectRatio: "1/1", background: "#f0f0f0", cursor: "pointer", overflow: "hidden", borderRadius: 6 }}
+                    style={{
+                      position: "relative",
+                      aspectRatio: "1/1",
+                      background: "#f0f0f0",
+                      cursor: "pointer",
+                      overflow: "hidden",
+                      borderRadius: 6,
+                      transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(0.97)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
                   >
                     <img
                       src={photo.url}
