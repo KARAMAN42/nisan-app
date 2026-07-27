@@ -5,6 +5,38 @@ export const maxDuration = 60;
 
 global.photoStore = global.photoStore || [];
 
+// ─── Vercel Blob index helpers ───
+async function readIndex(list) {
+  try {
+    const { blobs } = await list({ prefix: 'nisan-index', limit: 20 });
+    if (!blobs.length) return [];
+    // Sort newest first, use the latest
+    blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+    const res = await fetch(blobs[0].url + '?nc=' + Date.now());
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+async function writeIndex(entries, list, put, del) {
+  try {
+    // Remove all old index blobs first
+    const { blobs } = await list({ prefix: 'nisan-index', limit: 20 });
+    if (blobs.length > 0) {
+      await del(blobs.map(b => b.url));
+    }
+    // Write updated index
+    await put('nisan-index.json', JSON.stringify(entries, null, 0), {
+      access: 'public',
+      addRandomSuffix: false,
+      contentType: 'application/json',
+    });
+  } catch (e) {
+    console.error('writeIndex error:', e.message);
+  }
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -18,29 +50,22 @@ export async function POST(request) {
     const msg = (message || '').trim().substring(0, 200);
     const uploadedPhotos = [];
 
-    for (const { dataUrl, filename } of images) {
-      if (process.env.BLOB_READ_WRITE_TOKEN) {
-        try {
-          const { put } = await import('@vercel/blob');
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      try {
+        const { put, list, del } = await import('@vercel/blob');
+
+        // Upload each image
+        for (const { dataUrl, filename } of images) {
           const base64Data = dataUrl.split(',')[1];
           const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
           const ext = mimeType.includes('png') ? 'png' : 'jpg';
           const ts = Date.now();
-          // Encode name as ASCII-safe for metadata (base64)
-          const encodedName = Buffer.from(name, 'utf8').toString('base64');
-          const encodedMsg = Buffer.from(msg, 'utf8').toString('base64');
-          const blobPath = `nisan/${ts}.${ext}`;
           const buffer = Buffer.from(base64Data, 'base64');
 
-          const blob = await put(blobPath, buffer, {
+          const blob = await put(`nisan/${ts}.${ext}`, buffer, {
             access: 'public',
             contentType: mimeType,
-            metadata: {
-              // lowercase keys, base64-encoded values to avoid Turkish char issues
-              name: encodedName,
-              msg: encodedMsg,
-              ts: String(ts),
-            },
+            addRandomSuffix: true,
           });
 
           uploadedPhotos.push({
@@ -49,13 +74,26 @@ export async function POST(request) {
             message: msg,
             timestamp: ts,
           });
-          continue;
-        } catch (blobErr) {
-          console.error("Blob upload error:", blobErr.message);
         }
-      }
 
-      // Memory fallback
+        // Update the index with new entries prepended
+        const current = await readIndex(list);
+        const updated = [...uploadedPhotos, ...current];
+        await writeIndex(updated, list, put, del);
+
+        return NextResponse.json({
+          success: true,
+          count: uploadedPhotos.length,
+          url: uploadedPhotos[0]?.url,
+          urls: uploadedPhotos.map(p => p.url),
+        });
+      } catch (blobErr) {
+        console.error("Blob error:", blobErr.message);
+      }
+    }
+
+    // Memory fallback
+    for (const { dataUrl, filename } of images) {
       const entry = { url: dataUrl, name, message: msg, timestamp: Date.now() };
       global.photoStore.unshift(entry);
       uploadedPhotos.push(entry);
