@@ -124,7 +124,7 @@ export default function Home() {
               </svg>
               Fotoğraf Yükle
             </button>
-            <p className="instruction-text">Birden fazla fotoğraf seçebilirsiniz 📸</p>
+            <p className="instruction-text">Fotoğraflarınızla bu güzel anları ölümsüzleştirin ✨</p>
             {success && (
               <p className="success-msg">
                 {successCount > 1 ? `${successCount} fotoğraf eklendi 🤍` : "Fotoğrafınız eklendi 🤍"}
