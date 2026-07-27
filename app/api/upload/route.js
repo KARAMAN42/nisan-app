@@ -1,25 +1,86 @@
+import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
+global.photoStore = global.photoStore || [];
+
 export async function POST(request) {
   try {
-    const { image, filename } = await request.json();
+    const contentType = request.headers.get('content-type') || '';
+    let images = [];
 
-    if (!image) {
+    if (contentType.includes('application/json')) {
+      const body = await request.json();
+      
+      // Handle both old format { image, filename } and new format { images: [...] }
+      if (body.images && Array.isArray(body.images)) {
+        images = body.images; // New multi-upload format
+      } else if (body.image) {
+        images = [{ dataUrl: body.image, filename: body.filename || 'foto.jpg' }]; // Old single format
+      } else {
+        return NextResponse.json({ error: "Fotoğraf verisi bulunamadı." }, { status: 400 });
+      }
+    } else {
+      // FormData fallback
+      const formData = await request.formData();
+      const files = formData.getAll('photo');
+      for (const file of files) {
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        const mimeType = file.type || 'image/jpeg';
+        images.push({
+          dataUrl: `data:${mimeType};base64,${buffer.toString('base64')}`,
+          filename: file.name || 'foto.jpg'
+        });
+      }
+    }
+
+    if (images.length === 0) {
       return NextResponse.json({ error: "Fotoğraf bulunamadı." }, { status: 400 });
     }
 
-    const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-    const buffer = Buffer.from(base64Data, 'base64');
+    const uploadedUrls = [];
 
-    // Dosya yükleme mantığını kontrol edin
-    // Örneğin, dosyanın boyutunu kontrol etmek için:
-    if (buffer.length > 10 * 1024 * 1024) { // 10 MB limiti
-      return NextResponse.json({ error: "Dosya boyutu 10 MB'dan büyük olamaz." }, { status: 400 });
+    for (const { dataUrl, filename } of images) {
+      // 1. Try Vercel Blob
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        try {
+          const { put } = await import('@vercel/blob');
+          const base64Data = dataUrl.split(',')[1];
+          const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
+          const buffer = Buffer.from(base64Data, 'base64');
+          const safeFilename = `nisan/${Date.now()}-${(filename || 'foto.jpg').replace(/[^a-zA-Z0-9._-]/g, '')}`;
+          
+          const blob = await put(safeFilename, buffer, {
+            access: 'public',
+            contentType: mimeType,
+          });
+          
+          uploadedUrls.push(blob.url);
+          console.log("✅ Blob upload success:", blob.url);
+          continue;
+        } catch (blobErr) {
+          console.error("❌ Blob error:", blobErr.message);
+        }
+      }
+
+      // 2. Memory fallback
+      global.photoStore.unshift(dataUrl);
+      uploadedUrls.push(dataUrl);
     }
 
-    // Dosyayı kaydetmek için kodunuzu buraya ekleyin
+    return NextResponse.json({ 
+      success: true, 
+      url: uploadedUrls[0], // backward compat
+      urls: uploadedUrls, 
+      count: uploadedUrls.length 
+    });
 
-    return NextResponse.json({ message: "Fotoğraf başarıyla yüklendi." }, { status: 200 });
   } catch (error) {
-    console.error("Dosya yükleme hatası:", error);
-    return NextResponse.json({ error: "Bir hata oluştu." }, { status: 500 });
+    console.error("Upload handler error:", error);
+    return NextResponse.json({ 
+      error: "Yükleme sırasında bir hata oluştu: " + error.message 
+    }, { status: 500 });
   }
 }

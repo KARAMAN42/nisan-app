@@ -5,32 +5,35 @@ import Head from "next/head";
 
 export default function Home() {
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [successCount, setSuccessCount] = useState(0);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Fotoğrafı yüklemeden önce tarayıcıda 1920 piksele küçülten fonksiyon (Boyut sınırına takılmamak için)
+  // Resize image before upload (max 1600px, 85% quality)
   const resizeImage = (file) => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
+      reader.onerror = reject;
       reader.onload = (event) => {
         const img = new Image();
         img.src = event.target.result;
+        img.onerror = reject;
         img.onload = () => {
           const canvas = document.createElement("canvas");
-          let width = img.width;
-          let height = img.height;
-          const maxSize = 1920;
-
-          if (width > height && width > maxSize) {
-            height *= maxSize / width;
-            width = maxSize;
-          } else if (height > width && height > maxSize) {
-            width *= maxSize / height;
-            height = maxSize;
+          let { width, height } = img;
+          const maxSize = 1600;
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            } else {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
           }
-
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext("2d");
@@ -42,35 +45,46 @@ export default function Home() {
   };
 
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
 
     setUploading(true);
     setSuccess(false);
     setError(null);
+    setSuccessCount(0);
 
     try {
-      const compressedDataUrl = await resizeImage(file);
+      // Resize all images
+      const images = [];
+      for (let i = 0; i < files.length; i++) {
+        setUploadProgress(`Hazırlanıyor... ${i + 1}/${files.length}`);
+        const dataUrl = await resizeImage(files[i]);
+        images.push({ dataUrl, filename: files[i].name });
+      }
+
+      setUploadProgress(`${files.length} fotoğraf yükleniyor...`);
 
       const res = await fetch("/api/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: compressedDataUrl, filename: file.name }),
+        body: JSON.stringify({ images }),
       });
 
-      if (!res.ok) {
-        throw new Error("Yükleme başarısız oldu.");
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Yükleme başarısız oldu.");
       }
 
       setSuccess(true);
+      setSuccessCount(data.count || files.length);
     } catch (err) {
+      console.error("Upload error:", err);
       setError("Bir hata oluştu, lütfen tekrar deneyin.");
-      console.error(err);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      setUploadProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -85,17 +99,19 @@ export default function Home() {
       </Head>
 
       <div className="content-container">
+        {/* Central Photo */}
         <div className="photo-section anim-fade-up delay-1">
           <img
             src="/childhood-photo.png"
             alt="Yusuf ve Şevval Küçüklük"
             className="center-photo"
             onError={(e) => {
-              e.target.src = "https://via.placeholder.com/300x400/eeeeee/999999?text=Fotografiniz+Buraya";
+              e.target.style.display = "none";
             }}
           />
         </div>
 
+        {/* Upload Section */}
         <div className="upload-section anim-fade-up delay-2">
           <button
             className="elegant-upload-btn"
@@ -105,7 +121,7 @@ export default function Home() {
             {uploading ? (
               <>
                 <span className="loading-spinner"></span>
-                Yükleniyor...
+                {uploadProgress || "Yükleniyor..."}
               </>
             ) : (
               <>
@@ -119,27 +135,31 @@ export default function Home() {
             )}
           </button>
 
+          {/* multiple allows selecting several photos at once */}
           <input
             type="file"
             accept="image/*"
+            multiple
             className="file-input"
             ref={fileInputRef}
             onChange={handleFileChange}
           />
 
           <p className="instruction-text">
-            Fotoğraflarınızı yükleyerek bu<br />
-            güzel anları ölümsüzleştirin.
+            Birden fazla fotoğraf seçebilirsiniz 📸
           </p>
 
           {success && (
-            <p className="success-msg">Harika! Fotoğrafınız eklendi 🤍</p>
+            <p className="success-msg">
+              {successCount > 1 
+                ? `${successCount} fotoğraf eklendi 🤍` 
+                : "Fotoğrafınız eklendi 🤍"}
+            </p>
           )}
-          {error && (
-            <p className="error-msg">{error}</p>
-          )}
+          {error && <p className="error-msg">{error}</p>}
         </div>
 
+        {/* Footer */}
         <div className="footer-area anim-fade-up delay-3">
           <div className="names-container-inline">
             <svg width="50" height="15" viewBox="0 0 100 20" className="curly-line-left">

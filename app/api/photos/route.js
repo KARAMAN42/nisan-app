@@ -1,49 +1,28 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
 
 export const dynamic = 'force-dynamic';
+
+global.photoStore = global.photoStore || [];
 
 export async function GET() {
   const photoUrls = [];
   let isBlobActive = false;
 
-  // 1. Vercel Blob'dan fotoğrafları çekiyoruz
+  // 1. Fetch from Vercel Blob if token exists
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     try {
       const { list } = await import('@vercel/blob');
       const { blobs } = await list();
-
-      // Private store olduğu için indirme/görüntüleme için url'leri doğrudan alıyoruz
-      // Vercel Blob private url'leri otomatik yetkilendirme barındırır veya doğrudan sunulabilir
-      const blobUrls = blobs.map(b => b.url);
-      photoUrls.push(...blobUrls);
-      isBlobActive = true;
+      photoUrls.push(...blobs.map(b => b.url));
+      isBlobActive = blobs !== undefined;
     } catch (err) {
-      console.error("Vercel Blob listeleme hatası:", err);
+      console.error("Blob list error:", err.message);
     }
   }
 
-  // 2. Lokal dosya sistemi yedeği
-  try {
-    const uploadDir = path.join(process.cwd(), 'public/uploads');
-    await fs.access(uploadDir);
-    const files = await fs.readdir(uploadDir);
-
-    const fileStats = await Promise.all(
-      files.map(async (filename) => {
-        const stats = await fs.stat(path.join(uploadDir, filename));
-        return {
-          url: `/uploads/${filename}`,
-          time: stats.mtime.getTime()
-        };
-      })
-    );
-
-    fileStats.sort((a, b) => b.time - a.time);
-    photoUrls.push(...fileStats.map(f => f.url));
-  } catch (fsErr) {
-    // Lokal dizin yoksa geç
+  // 2. Add in-memory photos (fallback)
+  if (global.photoStore && global.photoStore.length > 0) {
+    photoUrls.push(...global.photoStore);
   }
 
   const uniquePhotos = Array.from(new Set(photoUrls));
@@ -52,7 +31,8 @@ export async function GET() {
     photos: uniquePhotos,
     diagnostics: {
       hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-      isBlobActive: isBlobActive
+      isBlobActive,
+      memoryCount: global.photoStore?.length || 0,
     }
   });
 }
