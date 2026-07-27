@@ -19,8 +19,17 @@
 
 html, body {
   height: 100%;
-  touch-action: manipulation;
-  /* overflow is NOT hidden globally — only locked on .minimalist-wrapper (main page) */
+  width: 100%;
+  overflow: hidden;
+  position: fixed;
+  touch-action: none;
+}
+
+body:has(.admin-page-container),
+body.admin-mode {
+  position: static !important;
+  overflow-y: auto !important;
+  touch-action: pan-y !important;
 }
 
 body {
@@ -35,12 +44,15 @@ body {
   margin: 0 auto;
   height: 100vh;
   height: 100dvh;
-  position: relative;
+  width: 100%;
+  position: fixed;
+  inset: 0;
   padding: 1.2rem 1.2rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
   overflow: hidden;
+  touch-action: none;
 }
 
 /* Animations */

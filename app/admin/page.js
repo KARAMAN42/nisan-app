@@ -223,7 +223,7 @@ export default function AdminPage() {
   const bgOpacity = Math.max(0, 0.96 - dragY / 450);
 
   return (
-    <div style={{ fontFamily: "var(--font-body),-apple-system,sans-serif", backgroundColor: "#f2f2f7", minHeight: "100vh", color: "#1a1a1a" }}>
+    <div className="admin-page-container" style={{ fontFamily: "var(--font-body),-apple-system,sans-serif", backgroundColor: "#f2f2f7", minHeight: "100vh", color: "#1a1a1a", overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
       <Head><title>Özel Galeri | Yusuf & Şevval</title></Head>
 
       {/* ─── HEADER ─── */}
