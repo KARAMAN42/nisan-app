@@ -117,68 +117,105 @@ export default function AdminPage() {
   // Get flat index of a photo
   const getFlatIndex = (photo) => flatPhotos.findIndex(p => p.url === photo.url);
 
-  // ─── DOWNLOAD ───
-  const downloadSingle = async (url, name) => {
+  // ─── SAVE / SHARE ───
+  // iOS: Opens native share sheet → "Fotoğrafı Kaydet" → directly to Photos library
+  // Desktop: Falls back to regular download
+  const savePhoto = async (url, name) => {
     try {
       const res = await fetch(url);
       const blob = await res.blob();
       const ext = blob.type.includes("png") ? "png" : "jpg";
+      const file = new File([blob], `${name || "foto"}.${ext}`, { type: blob.type });
+
+      // Try native iOS share (works on iPhone Safari → save to Photos)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: name || "Fotoğraf" });
+        return;
+      }
+
+      // Desktop fallback
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl; a.download = `${name || "foto"}.${ext}`; a.click();
       URL.revokeObjectURL(objUrl);
-    } catch { window.open(url, "_blank"); }
+    } catch (e) {
+      if (e.name !== "AbortError") window.open(url, "_blank");
+    }
   };
 
-  const downloadGroup = async (group) => {
+  const saveGroupPhotos = async (group) => {
     if (group.photos.length === 1) {
-      downloadSingle(group.photos[0].url, group.name);
+      await savePhoto(group.photos[0].url, group.name);
       return;
     }
     setDownloading(true);
     try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-      const folder = zip.folder(group.name);
+      // Fetch all photos as File objects
+      const files = [];
       for (let i = 0; i < group.photos.length; i++) {
         try {
           const res = await fetch(group.photos[i].url);
           const blob = await res.blob();
           const ext = blob.type.includes("png") ? "png" : "jpg";
-          folder.file(`${i + 1}.${ext}`, blob);
+          files.push(new File([blob], `${group.name}-${i + 1}.${ext}`, { type: blob.type }));
         } catch { }
       }
-      const content = await zip.generateAsync({ type: "blob" });
-      const objUrl = URL.createObjectURL(content);
-      const a = document.createElement("a"); a.href = objUrl;
-      a.download = `${group.name}-fotograflari.zip`; a.click();
-      URL.revokeObjectURL(objUrl);
-    } finally { setDownloading(false); }
+
+      // iOS: share all at once → Save X Images to Photos library
+      if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
+        await navigator.share({ files, title: `${group.name} Fotoğrafları` });
+        return;
+      }
+
+      // Desktop fallback: download sequentially
+      for (let i = 0; i < files.length; i++) {
+        const objUrl = URL.createObjectURL(files[i]);
+        const a = document.createElement("a");
+        a.href = objUrl; a.download = files[i].name; a.click();
+        URL.revokeObjectURL(objUrl);
+        await new Promise(r => setTimeout(r, 400));
+      }
+    } catch (e) {
+      if (e.name !== "AbortError") alert("İndirme hatası: " + e.message);
+    } finally {
+      setDownloading(false);
+    }
   };
 
-  const downloadSelected = async () => {
+  const saveSelected = async () => {
     if (!selected.size) return;
     setDownloading(true);
     try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-      const folder = zip.folder("nisan-fotograflari");
       const items = Array.from(selected).map(i => flatPhotos[i]);
+      const files = [];
       for (let i = 0; i < items.length; i++) {
         try {
-          const p = items[i];
-          const res = await fetch(p.url);
+          const res = await fetch(items[i].url);
           const blob = await res.blob();
           const ext = blob.type.includes("png") ? "png" : "jpg";
-          folder.file(`${i + 1}-${p.name || "misafir"}.${ext}`, blob);
+          files.push(new File([blob], `${items[i].name || "foto"}-${i + 1}.${ext}`, { type: blob.type }));
         } catch { }
       }
-      const content = await zip.generateAsync({ type: "blob" });
-      const objUrl = URL.createObjectURL(content);
-      const a = document.createElement("a"); a.href = objUrl;
-      a.download = "nisan-fotograflari.zip"; a.click();
-      URL.revokeObjectURL(objUrl);
-    } finally { setDownloading(false); }
+
+      // iOS: share all selected photos at once
+      if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
+        await navigator.share({ files, title: "Nişan Fotoğrafları" });
+        return;
+      }
+
+      // Desktop fallback
+      for (let i = 0; i < files.length; i++) {
+        const objUrl = URL.createObjectURL(files[i]);
+        const a = document.createElement("a");
+        a.href = objUrl; a.download = files[i].name; a.click();
+        URL.revokeObjectURL(objUrl);
+        await new Promise(r => setTimeout(r, 400));
+      }
+    } catch (e) {
+      if (e.name !== "AbortError") alert("İndirme hatası: " + e.message);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const photoScale = Math.max(0.75, 1 - dragY / 1200);
@@ -253,13 +290,13 @@ export default function AdminPage() {
                     <div style={{ fontSize: "0.73rem", color: "#bbb", marginTop: 1 }}>{group.photos.length} fotoğraf yükledi</div>
                   </div>
                 </div>
-                {/* Download */}
+                {/* Save / Share */}
                 <button
-                  onClick={() => downloadGroup(group)}
+                  onClick={() => saveGroupPhotos(group)}
                   disabled={downloading}
                   style={{ background: "#f2f2f7", border: "none", borderRadius: 20, padding: "0.38rem 0.85rem", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", color: "#1a1a1a", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
                 >
-                  ⬇️ {group.photos.length > 1 ? "ZIP İndir" : "İndir"}
+                  {group.photos.length > 1 ? "📥 Tümünü Kaydet" : "📥 Kaydet"}
                 </button>
               </div>
 
@@ -302,11 +339,11 @@ export default function AdminPage() {
         ))}
       </main>
 
-      {/* ─── BULK DOWNLOAD BAR ─── */}
+      {/* ─── BULK SAVE BAR ─── */}
       {selectMode && selected.size > 0 && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "1rem", background: "rgba(255,255,255,0.96)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(0,0,0,0.08)", display: "flex", justifyContent: "center", zIndex: 30 }}>
-          <button onClick={downloadSelected} disabled={downloading} style={{ background: "#1a1a1a", color: "white", border: "none", borderRadius: 50, padding: "0.9rem 2rem", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer" }}>
-            {downloading ? "⏳ Hazırlanıyor..." : `⬇️  ${selected.size} Fotoğrafı ZIP İndir`}
+          <button onClick={saveSelected} disabled={downloading} style={{ background: "#1a1a1a", color: "white", border: "none", borderRadius: 50, padding: "0.9rem 2rem", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer" }}>
+            {downloading ? "⏳ Hazırlanıyor..." : `📥 ${selected.size} Fotoğrafı Kaydet`}
           </button>
         </div>
       )}
@@ -346,10 +383,10 @@ export default function AdminPage() {
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: "0.8rem" }}>
               <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.78rem" }}>{lbIndex + 1} / {flatPhotos.length}</div>
               <button
-                onClick={() => downloadSingle(flatPhotos[lbIndex]?.url, flatPhotos[lbIndex]?.name)}
+                onClick={() => savePhoto(flatPhotos[lbIndex]?.url, flatPhotos[lbIndex]?.name)}
                 style={{ background: "white", color: "#1a1a1a", border: "none", borderRadius: 50, padding: "0.7rem 1.6rem", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", marginLeft: "auto" }}
               >
-                ⬇️ İndir
+                📥 Kaydet
               </button>
             </div>
           </div>
