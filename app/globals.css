@@ -214,3 +214,146 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ─── BOTTOM SHEET ─── */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  z-index: 98;
+  pointer-events: none;
+  transition: background 0.35s ease, backdrop-filter 0.35s ease;
+}
+
+.sheet-backdrop.visible {
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-radius: 22px 22px 0 0;
+  padding: 0 1.4rem 2.5rem;
+  padding-bottom: calc(2.5rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+  transform: translateY(100%);
+  transition: transform 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  z-index: 99;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.bottom-sheet.open {
+  transform: translateY(0);
+}
+
+.sheet-handle {
+  width: 40px;
+  height: 5px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  margin: 0.8rem auto 1.2rem;
+}
+
+.sheet-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin-bottom: 1.2rem;
+  color: #1a1a1a;
+}
+
+.sheet-field {
+  margin-bottom: 0.9rem;
+}
+
+.sheet-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.35rem;
+}
+
+.sheet-input,
+.sheet-textarea {
+  width: 100%;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  font-family: var(--font-body), -apple-system, sans-serif;
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  background: #f9f9f9;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  -webkit-appearance: none;
+}
+
+.sheet-input:focus,
+.sheet-textarea:focus {
+  border-color: #1a1a1a;
+  background: #fff;
+}
+
+.sheet-textarea {
+  resize: none;
+  height: 72px;
+}
+
+.sheet-select-btn {
+  width: 100%;
+  background: #f2f2f7;
+  border: none;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  font-family: var(--font-body), -apple-system, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.9rem;
+  transition: background 0.15s ease;
+}
+
+.sheet-select-btn:active { background: #e5e5ea; }
+
+.sheet-upload-btn {
+  width: 100%;
+  background: #1a1a1a;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 1.05rem;
+  font-family: var(--font-body), -apple-system, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.sheet-upload-btn:active { transform: scale(0.98); }
+.sheet-upload-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+.sheet-error {
+  color: #e53935;
+  font-size: 0.85rem;
+  margin-bottom: 0.7rem;
+  text-align: center;
+}
