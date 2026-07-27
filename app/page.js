@@ -1,9 +1,19 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Head from "next/head";
 
+const timeAgo = (ts) => {
+  if (!ts) return '';
+  const d = Date.now() - ts;
+  if (d < 60000) return 'az önce';
+  if (d < 3600000) return `${Math.floor(d / 60000)} dk önce`;
+  if (d < 86400000) return `${Math.floor(d / 3600000)} sa önce`;
+  return `${Math.floor(d / 86400000)} gün önce`;
+};
+
 export default function Home() {
+  // ─── Upload state ───
   const [sheetOpen, setSheetOpen] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [message, setMessage] = useState("");
@@ -15,6 +25,123 @@ export default function Home() {
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
+  // ─── Feed state ───
+  const [feedOpen, setFeedOpen] = useState(false);
+  const [feedPosts, setFeedPosts] = useState([]);
+  const [loadingFeed, setLoadingFeed] = useState(false);
+  const [visitorId, setVisitorId] = useState('');
+  const [openComments, setOpenComments] = useState({}); // url -> bool
+  const [commentForms, setCommentForms] = useState({}); // url -> {name, text}
+  const [submitting, setSubmitting] = useState({}); // url -> bool
+  const pollRef = useRef(null);
+  const feedScrollRef = useRef(null);
+
+  // Init visitor ID from localStorage
+  useEffect(() => {
+    let vid = localStorage.getItem('nisan-vid');
+    if (!vid) {
+      vid = 'v' + Math.random().toString(36).substr(2, 12);
+      localStorage.setItem('nisan-vid', vid);
+    }
+    setVisitorId(vid);
+    // Prefetch strip photos silently
+    fetch(`/api/feed?vid=${vid}`).then(r => r.json()).then(d => {
+      setFeedPosts(d.posts || []);
+    }).catch(() => {});
+  }, []);
+
+  // Body touch-action unlock when feed is open
+  useEffect(() => {
+    if (feedOpen) {
+      document.body.style.touchAction = 'pan-y';
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.touchAction = '';
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.touchAction = '';
+      document.body.style.overflow = '';
+    };
+  }, [feedOpen]);
+
+  const fetchFeed = useCallback(async (vid) => {
+    try {
+      const res = await fetch(`/api/feed?vid=${vid || visitorId}`);
+      const data = await res.json();
+      setFeedPosts(data.posts || []);
+    } catch { }
+  }, [visitorId]);
+
+  const openFeed = async () => {
+    setFeedOpen(true);
+    setLoadingFeed(true);
+    await fetchFeed(visitorId);
+    setLoadingFeed(false);
+    // Poll every 8s
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => fetchFeed(visitorId), 8000);
+  };
+
+  const closeFeed = () => {
+    setFeedOpen(false);
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
+
+  // ─── Like ───
+  const handleLike = async (photoUrl) => {
+    // Optimistic
+    setFeedPosts(prev => prev.map(p => {
+      if (p.url !== photoUrl) return p;
+      return { ...p, isLiked: !p.isLiked, likeCount: p.isLiked ? p.likeCount - 1 : p.likeCount + 1 };
+    }));
+    try {
+      await fetch('/api/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoUrl, visitorId }),
+      });
+    } catch { /* silent */ }
+  };
+
+  // ─── Comment ───
+  const toggleComments = (url) => {
+    setOpenComments(prev => ({ ...prev, [url]: !prev[url] }));
+    if (!commentForms[url]) {
+      setCommentForms(prev => ({ ...prev, [url]: { name: guestName || '', text: '' } }));
+    }
+  };
+
+  const updateForm = (url, field, val) => {
+    setCommentForms(prev => ({ ...prev, [url]: { ...(prev[url] || {}), [field]: val } }));
+  };
+
+  const submitComment = async (photoUrl) => {
+    const form = commentForms[photoUrl] || {};
+    const text = form.text?.trim();
+    const name = (form.name?.trim() || guestName || 'Misafir');
+    if (!text) return;
+
+    setSubmitting(prev => ({ ...prev, [photoUrl]: true }));
+    try {
+      const res = await fetch('/api/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoUrl, name, text }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFeedPosts(prev => prev.map(p => {
+          if (p.url !== photoUrl) return p;
+          return { ...p, commentCount: p.commentCount + 1, comments: [...(p.comments || []), data.comment] };
+        }));
+        updateForm(photoUrl, 'text', '');
+      }
+    } catch { }
+    finally { setSubmitting(prev => ({ ...prev, [photoUrl]: false })); }
+  };
+
+  // ─── Upload ───
   const resizeImage = (file) =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -44,27 +171,16 @@ export default function Home() {
     if (files.length) setSelectedFiles(files);
   };
 
-  const openSheet = () => {
-    setSheetOpen(true);
-    setSuccess(false);
-    setError(null);
-    setSelectedFiles([]);
-  };
-
+  const openSheet = () => { setSheetOpen(true); setSuccess(false); setError(null); setSelectedFiles([]); };
   const closeSheet = () => {
-    setSheetOpen(false);
-    setSelectedFiles([]);
-    setError(null);
+    setSheetOpen(false); setSelectedFiles([]); setError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleUpload = async () => {
     if (!guestName.trim()) { setError("Lütfen adınızı girin."); return; }
     if (!selectedFiles.length) { setError("Lütfen en az bir fotoğraf seçin."); return; }
-
-    setUploading(true);
-    setError(null);
-
+    setUploading(true); setError(null);
     try {
       const images = [];
       for (let i = 0; i < selectedFiles.length; i++) {
@@ -73,45 +189,36 @@ export default function Home() {
         images.push({ dataUrl, filename: selectedFiles[i].name });
       }
       setUploadProgress(`${selectedFiles.length} fotoğraf yükleniyor...`);
-
       const res = await fetch("/api/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ images, guestName: guestName.trim(), message: message.trim() }),
       });
-
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || "Yükleme başarısız.");
-
       setSuccess(true);
       setSuccessCount(data.count || selectedFiles.length);
-      setSheetOpen(false);
-      setSelectedFiles([]);
+      setSheetOpen(false); setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      // Refresh feed silently after upload
+      setTimeout(() => fetchFeed(visitorId), 2000);
     } catch (err) {
       setError("Hata: " + err.message);
-    } finally {
-      setUploading(false);
-      setUploadProgress("");
-    }
+    } finally { setUploading(false); setUploadProgress(""); }
   };
+
+  const stripPhotos = feedPosts.slice(0, 10);
 
   return (
     <>
-      <Head>
-        <title>Yusuf & Şevval Nişan Töreni</title>
-      </Head>
+      <Head><title>Yusuf & Şevval Nişan Töreni</title></Head>
 
       <div className="minimalist-wrapper">
         <div className="content-container">
           {/* Central Photo */}
           <div className="photo-section anim-fade-up delay-1">
-            <img
-              src="/childhood-photo.png"
-              alt="Yusuf ve Şevval"
-              className="center-photo"
-              onError={(e) => { e.target.style.display = "none"; }}
-            />
+            <img src="/childhood-photo.png" alt="Yusuf ve Şevval" className="center-photo"
+              onError={(e) => { e.target.style.display = "none"; }} />
           </div>
 
           {/* Upload Trigger Button */}
@@ -151,83 +258,176 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* ─── PHOTO STRIP ─── */}
+        {stripPhotos.length > 0 && (
+          <div className="photo-strip anim-fade-up">
+            <div className="strip-header">
+              <span className="strip-label">📸 Son anlar</span>
+              <button className="strip-see-all" onClick={openFeed}>Tümünü gör →</button>
+            </div>
+            <div className="strip-scroll" style={{ touchAction: 'pan-x' }}>
+              {stripPhotos.map((p, i) => (
+                <div key={i} className="strip-thumb" onClick={openFeed}>
+                  <img src={p.url} alt={p.name} />
+                  <div className="strip-initial">{(p.name || 'M').charAt(0).toUpperCase()}</div>
+                </div>
+              ))}
+              <div className="strip-open-btn" onClick={openFeed}>
+                <span>+{Math.max(0, feedPosts.length - 10)}</span>
+                <span style={{ fontSize: '0.65rem' }}>Daha fazla</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── FEED OVERLAY ─── */}
+      <div className={`feed-overlay${feedOpen ? ' open' : ''}`}>
+        {/* Header */}
+        <div className="feed-header">
+          <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>🤍 Nişan Anları</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: '0.78rem', color: '#999' }}>{feedPosts.length} fotoğraf</span>
+            <button className="feed-close-btn" onClick={closeFeed}>✕</button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="feed-content" ref={feedScrollRef} style={{ overflowY: 'auto', touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
+          {loadingFeed ? (
+            <div style={{ padding: '4rem', textAlign: 'center', color: '#aaa' }}>
+              <div className="feed-loading-spinner" />
+              <p style={{ marginTop: '1rem' }}>Yükleniyor...</p>
+            </div>
+          ) : feedPosts.length === 0 ? (
+            <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#aaa' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📷</div>
+              <div style={{ fontWeight: 500, fontSize: '1rem' }}>Henüz anı yüklenmemiş.</div>
+              <div style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>İlk fotoğrafı sen paylaş!</div>
+            </div>
+          ) : feedPosts.map((post, i) => (
+            <div key={i} className="feed-post">
+              {/* Post Header */}
+              <div className="feed-post-header">
+                <div className="feed-avatar">{(post.name || 'M').charAt(0).toUpperCase()}</div>
+                <div>
+                  <div className="feed-post-name">{post.name}</div>
+                  <div className="feed-post-time">{timeAgo(post.timestamp)}</div>
+                </div>
+              </div>
+
+              {/* Message */}
+              {post.message && (
+                <div className="feed-post-message">"{post.message}"</div>
+              )}
+
+              {/* Photo */}
+              <div className="feed-photo-wrap">
+                <img src={post.url} alt={post.name} className="feed-photo" loading="lazy" />
+              </div>
+
+              {/* Actions */}
+              <div className="feed-actions">
+                <button
+                  className={`feed-like-btn${post.isLiked ? ' liked' : ''}`}
+                  onClick={() => handleLike(post.url)}
+                >
+                  <span className="heart-icon">{post.isLiked ? '❤️' : '🤍'}</span>
+                  <span>{post.likeCount > 0 ? post.likeCount : ''}</span>
+                  <span style={{ fontSize: '0.82rem' }}>{post.isLiked ? 'Beğenildi' : 'Beğen'}</span>
+                </button>
+                <button className="feed-comment-btn" onClick={() => toggleComments(post.url)}>
+                  <span>💬</span>
+                  <span>{post.commentCount > 0 ? post.commentCount : ''}</span>
+                  <span style={{ fontSize: '0.82rem' }}>Yorum</span>
+                </button>
+              </div>
+
+              {/* Comments Section */}
+              {openComments[post.url] && (
+                <div className="feed-comments">
+                  {(post.comments || []).length > 0 ? (
+                    <div className="feed-comments-list">
+                      {(post.comments || []).map((c, j) => (
+                        <div key={j} className="feed-comment-item">
+                          <div className="feed-comment-avatar">{(c.name || 'M').charAt(0)}</div>
+                          <div>
+                            <span className="feed-comment-name">{c.name}</span>
+                            <span className="feed-comment-text"> {c.text}</span>
+                            <div className="feed-comment-time">{timeAgo(c.timestamp)}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '0.5rem 0', color: '#bbb', fontSize: '0.85rem' }}>
+                      Henüz yorum yok. İlk yorumu sen yap!
+                    </div>
+                  )}
+                  {/* Comment Form */}
+                  <div className="feed-comment-form">
+                    <input
+                      className="feed-comment-name-input"
+                      placeholder="Adınız"
+                      value={commentForms[post.url]?.name || ''}
+                      onChange={e => updateForm(post.url, 'name', e.target.value)}
+                      maxLength={40}
+                    />
+                    <div className="feed-comment-row">
+                      <input
+                        className="feed-comment-text-input"
+                        placeholder="Yorum yazın..."
+                        value={commentForms[post.url]?.text || ''}
+                        onChange={e => updateForm(post.url, 'text', e.target.value)}
+                        maxLength={200}
+                        onKeyDown={e => e.key === 'Enter' && submitComment(post.url)}
+                      />
+                      <button
+                        className="feed-comment-send"
+                        onClick={() => submitComment(post.url)}
+                        disabled={submitting[post.url] || !(commentForms[post.url]?.text?.trim())}
+                      >
+                        {submitting[post.url] ? '⏳' : '➤'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          <div style={{ height: '3rem' }} />
+        </div>
       </div>
 
       {/* Backdrop */}
-      <div
-        className={`sheet-backdrop ${sheetOpen ? "visible" : ""}`}
-        onClick={closeSheet}
-      />
+      <div className={`sheet-backdrop ${sheetOpen ? "visible" : ""}`} onClick={closeSheet} />
 
       {/* Bottom Sheet */}
       <div className={`bottom-sheet ${sheetOpen ? "open" : ""}`}>
-        {/* Handle bar */}
         <div className="sheet-handle" />
-
         <h2 className="sheet-title">Fotoğraf Paylaş</h2>
-
-        {/* Name Input */}
         <div className="sheet-field">
           <label className="sheet-label">Adınız *</label>
-          <input
-            type="text"
-            className="sheet-input"
-            placeholder="Adınızı ve soyadınızı girin"
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-            maxLength={60}
-          />
+          <input type="text" className="sheet-input" placeholder="Adınızı ve soyadınızı girin"
+            value={guestName} onChange={(e) => setGuestName(e.target.value)} maxLength={60} />
         </div>
-
-        {/* Message Input */}
         <div className="sheet-field">
           <label className="sheet-label">Mesajınız (isteğe bağlı)</label>
-          <textarea
-            className="sheet-textarea"
-            placeholder="Bir mesaj bırakmak ister misiniz?"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            maxLength={200}
-          />
+          <textarea className="sheet-textarea" placeholder="Bir mesaj bırakmak ister misiniz?"
+            value={message} onChange={(e) => setMessage(e.target.value)} maxLength={200} />
         </div>
-
-        {/* File Selection */}
-        <button
-          className="sheet-select-btn"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-        >
+        <button className="sheet-select-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
+            <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
           </svg>
-          {selectedFiles.length > 0
-            ? `${selectedFiles.length} fotoğraf seçildi ✓`
-            : "Fotoğraf Seç (Çoklu seçim yapabilirsiniz)"}
+          {selectedFiles.length > 0 ? `${selectedFiles.length} fotoğraf seçildi ✓` : "Fotoğraf Seç (Çoklu seçim yapabilirsiniz)"}
         </button>
-
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          className="file-input"
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-        />
-
+        <input type="file" accept="image/*" multiple className="file-input" ref={fileInputRef} onChange={handleFileSelect} />
         {error && <p className="sheet-error">{error}</p>}
-
-        {/* Upload Button */}
-        <button
-          className="sheet-upload-btn"
-          onClick={handleUpload}
-          disabled={uploading || !selectedFiles.length}
-        >
-          {uploading ? (
-            <><span className="loading-spinner" />{uploadProgress || "Yükleniyor..."}</>
-          ) : (
-            "Yükle 🤍"
-          )}
+        <button className="sheet-upload-btn" onClick={handleUpload} disabled={uploading || !selectedFiles.length}>
+          {uploading ? (<><span className="loading-spinner" />{uploadProgress || "Yükleniyor..."}</>) : ("Yükle 🤍")}
         </button>
       </div>
     </>
