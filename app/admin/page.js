@@ -337,7 +337,7 @@ export default function AdminPage() {
             </div>
 
             {/* Photos Grid */}
-            <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(group.photos.length, 3)}, 1fr)`, gap: 2, padding: 2 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, padding: 2 }}>
               {group.photos.map((photo, j) => {
                 const flatIdx = getFlatIndex(photo);
                 return (
