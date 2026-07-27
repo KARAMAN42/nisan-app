@@ -207,7 +207,11 @@ export default function Home() {
     } finally { setUploading(false); setUploadProgress(""); }
   };
 
-  const stripPhotos = feedPosts.slice(0, 10);
+  const stripPhotos = feedPosts.length > 0 ? feedPosts : [];
+  // Duplicate for seamless infinite scroll loop
+  const loopPhotos = stripPhotos.length > 0
+    ? [...stripPhotos, ...stripPhotos, ...stripPhotos]
+    : [];
 
   return (
     <>
@@ -266,16 +270,14 @@ export default function Home() {
               <span className="strip-label">📸 Son anlar</span>
               <button className="strip-see-all" onClick={openFeed}>Tümünü gör →</button>
             </div>
-            <div className="strip-scroll" style={{ touchAction: 'pan-x' }}>
-              {stripPhotos.map((p, i) => (
-                <div key={i} className="strip-thumb" onClick={openFeed}>
-                  <img src={p.url} alt={p.name} />
-                  <div className="strip-initial">{(p.name || 'M').charAt(0).toUpperCase()}</div>
-                </div>
-              ))}
-              <div className="strip-open-btn" onClick={openFeed}>
-                <span>+{Math.max(0, feedPosts.length - 10)}</span>
-                <span style={{ fontSize: '0.65rem' }}>Daha fazla</span>
+            <div className="strip-scroll">
+              <div className="strip-scroll-inner">
+                {loopPhotos.map((p, i) => (
+                  <div key={i} className="strip-thumb" onClick={openFeed}>
+                    <img src={p.url} alt={p.name} />
+                    <div className="strip-initial">{(p.name || 'M').charAt(0).toUpperCase()}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

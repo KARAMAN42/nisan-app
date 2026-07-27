@@ -406,18 +406,25 @@ body {
 }
 
 .strip-scroll {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  overflow: hidden;
+  width: 100%;
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
 }
 
-.strip-scroll::-webkit-scrollbar { display: none; }
+.strip-scroll-inner {
+  display: flex;
+  gap: 8px;
+  width: max-content;
+  animation: stripScroll 22s linear infinite;
+}
+
+@keyframes stripScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-33.333%)); }
+}
 
 .strip-thumb {
-  position: relative;
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -431,10 +438,17 @@ body {
 
 .strip-thumb:active { transform: scale(0.93); }
 
+
 .strip-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: grayscale(100%);
+  transition: filter 0.3s ease;
+}
+
+.strip-thumb:hover img {
+  filter: grayscale(0%);
 }
 
 .strip-initial {
