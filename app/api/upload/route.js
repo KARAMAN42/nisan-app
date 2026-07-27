@@ -14,33 +14,40 @@ export async function POST(request) {
       return NextResponse.json({ error: "Fotoğraf verisi bulunamadı." }, { status: 400 });
     }
 
+    const name = (guestName || 'Misafir').trim().substring(0, 60);
+    const msg = (message || '').trim().substring(0, 200);
     const uploadedPhotos = [];
 
     for (const { dataUrl, filename } of images) {
-      // 1. Try Vercel Blob with metadata
       if (process.env.BLOB_READ_WRITE_TOKEN) {
         try {
           const { put } = await import('@vercel/blob');
           const base64Data = dataUrl.split(',')[1];
           const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
+          const ext = mimeType.includes('png') ? 'png' : 'jpg';
+          const ts = Date.now();
+          // Encode name as ASCII-safe for metadata (base64)
+          const encodedName = Buffer.from(name, 'utf8').toString('base64');
+          const encodedMsg = Buffer.from(msg, 'utf8').toString('base64');
+          const blobPath = `nisan/${ts}.${ext}`;
           const buffer = Buffer.from(base64Data, 'base64');
-          const safeFilename = `nisan/photos/${Date.now()}-${(filename || 'foto.jpg').replace(/[^a-zA-Z0-9._-]/g, '')}`;
 
-          const blob = await put(safeFilename, buffer, {
+          const blob = await put(blobPath, buffer, {
             access: 'public',
             contentType: mimeType,
             metadata: {
-              guestName: (guestName || 'Misafir').substring(0, 60),
-              msg: (message || '').substring(0, 200),
-              ts: String(Date.now()),
+              // lowercase keys, base64-encoded values to avoid Turkish char issues
+              name: encodedName,
+              msg: encodedMsg,
+              ts: String(ts),
             },
           });
 
           uploadedPhotos.push({
             url: blob.url,
-            name: guestName || 'Misafir',
-            message: message || '',
-            timestamp: Date.now(),
+            name,
+            message: msg,
+            timestamp: ts,
           });
           continue;
         } catch (blobErr) {
@@ -48,13 +55,8 @@ export async function POST(request) {
         }
       }
 
-      // 2. Memory fallback
-      const entry = {
-        url: dataUrl,
-        name: guestName || 'Misafir',
-        message: message || '',
-        timestamp: Date.now(),
-      };
+      // Memory fallback
+      const entry = { url: dataUrl, name, message: msg, timestamp: Date.now() };
       global.photoStore.unshift(entry);
       uploadedPhotos.push(entry);
     }
