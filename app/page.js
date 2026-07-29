@@ -290,7 +290,8 @@ export default function Home() {
   // ─── Derived data ───
   const photoFeedPosts = feedPosts.filter(p => p.type === 'photo');
   const stripPhotos = feedPosts.filter(p => p.type === 'photo');
-  const loopPhotos = stripPhotos.length > 0 ? [...stripPhotos, ...stripPhotos, ...stripPhotos] : [];
+  // Removed duplication logic to prevent showing the same photos multiple times
+  const displayStripPhotos = stripPhotos;
 
   // Most liked photo (only count if has ≥1 like)
   const mostLikedPost = photoFeedPosts.reduce((best, p) => (p.likeCount > 0 && p.likeCount > (best?.likeCount || 0)) ? p : best, null);
@@ -373,7 +374,7 @@ export default function Home() {
             </div>
             <div className="strip-scroll">
               <div className="strip-scroll-inner">
-                {loopPhotos.map((p, i) => (
+                {displayStripPhotos.map((p, i) => (
                   <div key={i} className="strip-thumb" onClick={openFeed}>
                     <img src={p.url} alt={p.name} />
                     <div className="strip-initial">{(p.name || 'M').charAt(0).toUpperCase()}</div>
