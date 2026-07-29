@@ -70,7 +70,27 @@ export default function Home() {
     try {
       const res = await fetch(`/api/feed?vid=${vid || visitorId}`);
       const data = await res.json();
-      setFeedPosts(data.posts || []);
+      const serverPosts = data.posts || [];
+
+      // Smart merge: never lose optimistic comments that haven't synced to server yet
+      setFeedPosts(prev => {
+        if (!prev.length) return serverPosts;
+        return serverPosts.map(serverPost => {
+          const localPost = prev.find(p => p.url === serverPost.url);
+          if (!localPost) return serverPost;
+          // If local has MORE comments than server (blob write lag), keep local comments
+          const localCount = (localPost.comments || []).length;
+          const serverCount = (serverPost.comments || []).length;
+          if (localCount > serverCount) {
+            return {
+              ...serverPost,
+              comments: localPost.comments,
+              commentCount: Math.max(serverPost.commentCount, localPost.commentCount),
+            };
+          }
+          return serverPost;
+        });
+      });
     } catch { }
   }, [visitorId]);
 
@@ -148,8 +168,8 @@ export default function Home() {
           return { ...p, commentCount: p.commentCount + 1, comments: [...(p.comments || []), data.comment] };
         }));
         updateForm(photoUrl, 'text', '');
-        // Immediately re-fetch so everyone sees the new comment
-        fetchFeed(visitorId);
+        // Don't immediately re-fetch — optimistic update is already applied.
+        // Blob writes take a moment; the 3s polling will sync cleanly without overwriting.
       }
     } catch { }
     finally { setSubmitting(prev => ({ ...prev, [photoUrl]: false })); }
