@@ -296,14 +296,17 @@ export default function AdminPage() {
     
     setDeletingPhotos(true);
     try {
-      const items = Array.from(selected).map(i => flatPhotos[i]);
-      for (const item of items) {
-        await fetch('/api/admin/delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: item.url, timestamp: item.timestamp })
-        });
-      }
+      const items = Array.from(selected).map(i => ({ 
+        url: flatPhotos[i].url, 
+        timestamp: flatPhotos[i].timestamp 
+      }));
+      
+      await fetch('/api/admin/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+      });
+
       clearSelect();
       fetchPhotos();
       fetchStats();
