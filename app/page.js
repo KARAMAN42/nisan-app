@@ -139,9 +139,8 @@ export default function Home() {
   };
 
   // ─── Sparkle rain for comments ───
-  const fireSparkles = (e) => {
-    if (!e) return;
-    const rect = e.currentTarget.getBoundingClientRect();
+  const fireSparkles = (rect) => {
+    if (!rect) return;
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
     const chars = ['✨', '💬', '✨', '💬', '✨'];
@@ -187,12 +186,16 @@ export default function Home() {
     if (!name) { setCommentErrors(prev => ({ ...prev, [photoUrl]: 'Lütfen adınızı girin.' })); return; }
     if (!text) { setCommentErrors(prev => ({ ...prev, [photoUrl]: 'Yorum boş olamaz.' })); return; }
     setCommentErrors(prev => ({ ...prev, [photoUrl]: '' }));
+
+    // Capture the target element rect synchronously before the await fetch
+    const rect = e?.currentTarget ? e.currentTarget.getBoundingClientRect() : null;
+
     setSubmitting(prev => ({ ...prev, [photoUrl]: true }));
     try {
       const res = await fetch('/api/comment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photoUrl, name, text }) });
       const data = await res.json();
       if (data.success) {
-        fireSparkles(e);
+        if (rect) fireSparkles(rect);
         setFeedPosts(prev => prev.map(p => {
           if (p.url !== photoUrl) return p;
           return { ...p, commentCount: p.commentCount + 1, comments: [...(p.comments || []), data.comment] };
