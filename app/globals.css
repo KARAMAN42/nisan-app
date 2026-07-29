@@ -406,28 +406,23 @@ body {
 }
 
 .strip-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
   width: 100%;
   mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding-bottom: 5px;
-}
-
-.strip-scroll::-webkit-scrollbar {
-  display: none;
 }
 
 .strip-scroll-inner {
   display: flex;
   gap: 12px;
   width: max-content;
-  padding: 0 1rem;
+  animation: stripScroll 25s linear infinite;
 }
 
-/* Animation removed */
+@keyframes stripScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-50%)); }
+}
 
 .strip-thumb {
   width: 52px;

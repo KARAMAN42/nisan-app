@@ -290,8 +290,17 @@ export default function Home() {
   // ─── Derived data ───
   const photoFeedPosts = feedPosts.filter(p => p.type === 'photo');
   const stripPhotos = feedPosts.filter(p => p.type === 'photo');
-  // Removed duplication logic to prevent showing the same photos multiple times
-  const displayStripPhotos = stripPhotos;
+  
+  // Sürekli akan animasyon için fotoğrafları çoğalt
+  let basePhotos = [];
+  if (stripPhotos.length > 0) {
+    const repeats = Math.max(2, Math.ceil(12 / stripPhotos.length));
+    for (let i = 0; i < repeats; i++) {
+      basePhotos = [...basePhotos, ...stripPhotos];
+    }
+  }
+  // Kusursuz döngü için dizinin tam 2 katı olması ve -%50 kayması gerekir
+  const loopPhotos = basePhotos.length > 0 ? [...basePhotos, ...basePhotos] : [];
 
   // Most liked photo (only count if has ≥1 like)
   const mostLikedPost = photoFeedPosts.reduce((best, p) => (p.likeCount > 0 && p.likeCount > (best?.likeCount || 0)) ? p : best, null);
@@ -374,7 +383,7 @@ export default function Home() {
             </div>
             <div className="strip-scroll">
               <div className="strip-scroll-inner">
-                {displayStripPhotos.map((p, i) => (
+                {loopPhotos.map((p, i) => (
                   <div key={i} className="strip-thumb" onClick={openFeed}>
                     <img src={p.url} alt={p.name} />
                     <div className="strip-initial">{(p.name || 'M').charAt(0).toUpperCase()}</div>
