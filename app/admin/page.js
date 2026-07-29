@@ -27,6 +27,7 @@ export default function AdminPage() {
   const [diagnostics, setDiagnostics] = useState({});
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [guestbooks, setGuestbooks] = useState([]);
 
   // Comments
   const [allComments, setAllComments] = useState({}); // photoUrl -> comments[]
@@ -75,10 +76,13 @@ export default function AdminPage() {
       const res = await fetch("/api/feed?vid=admin");
       const data = await res.json();
       const map = {};
+      const gbList = [];
       for (const post of (data.posts || [])) {
         if (post.url && post.comments?.length) map[post.url] = post.comments;
+        if (post.type === 'guestbook') gbList.push(post);
       }
       setAllComments(map);
+      setGuestbooks(gbList);
     } catch { }
   };
 
@@ -317,6 +321,21 @@ export default function AdminPage() {
     }
   };
 
+  const deleteGuestbook = async (timestamp) => {
+    if (!confirm("Bu defter mesajını kalıcı olarak silmek istediğinize emin misiniz?")) return;
+    try {
+      await fetch('/api/admin/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: [{ url: '', timestamp }] })
+      });
+      fetchComments();
+      fetchStats();
+    } catch (e) {
+      alert("Hata: " + e.message);
+    }
+  };
+
   const photoScale = Math.max(0.75, 1 - dragY / 1200);
   const photoOpacity = Math.max(0, 1 - dragY / 350);
   const bgOpacity = Math.max(0, 0.96 - dragY / 450);
@@ -432,6 +451,41 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {/* ─── GUESTBOOK MESSAGES ─── */}
+      {guestbooks.length > 0 && (
+        <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 0 0.8rem' }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            overflow: 'hidden',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+            padding: '1rem 1.2rem',
+          }}>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.8rem' }}>
+              <span style={{ fontSize: '1.1rem' }}>📝</span> Özel Defter Mesajları ({guestbooks.length})
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              {guestbooks.sort((a,b)=>b.timestamp-a.timestamp).map((gb, idx) => (
+                <div key={idx} style={{ background: '#f8f8fa', padding: '1rem', borderRadius: 12, position: 'relative' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1a1a1a', marginBottom: 4 }}>{gb.name || 'Misafir'}</div>
+                  <div style={{ fontSize: '0.88rem', color: '#333', lineHeight: 1.5 }}>{gb.message}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#999', marginTop: 8 }}>
+                    {new Date(gb.timestamp).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                  <button 
+                    onClick={() => deleteGuestbook(gb.timestamp)}
+                    style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(255,59,48,0.1)', border: 'none', color: '#ff3b30', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: '4px 10px', borderRadius: 6 }}
+                  >
+                    Sil
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── GROUPED CONTENT ─── */}
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "0.8rem 0 5rem" }}>
