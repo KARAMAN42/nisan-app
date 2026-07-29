@@ -41,6 +41,9 @@ export default function Home() {
   const [flyingHearts, setFlyingHearts] = useState([]);
   const [flyingComments, setFlyingComments] = useState([]);
 
+  // ─── Swipe gesture state ───
+  const stripTouch = useRef({ startY: 0, startX: 0 });
+
   // ─── Guestbook state ───
   const [gbOpen, setGbOpen] = useState(false);
   const [gbName, setGbName] = useState('');
@@ -119,6 +122,24 @@ export default function Home() {
   const closeFeed = () => {
     setFeedOpen(false);
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
+
+  // ─── Swipe to open feed ───
+  const onStripTouchStart = (e) => {
+    stripTouch.current.startY = e.touches[0].clientY;
+    stripTouch.current.startX = e.touches[0].clientX;
+  };
+
+  const onStripTouchEnd = (e) => {
+    const endY = e.changedTouches[0].clientY;
+    const endX = e.changedTouches[0].clientX;
+    const dy = endY - stripTouch.current.startY;
+    const dx = endX - stripTouch.current.startX;
+    
+    // Eğer dikeyde yukarı doğru en az 30px kaydırıldıysa feed'i aç
+    if (Math.abs(dy) > Math.abs(dx) && dy < -30) {
+      openFeed();
+    }
   };
 
   // ─── Heart rain ───
@@ -376,7 +397,11 @@ export default function Home() {
 
         {/* ─── PHOTO STRIP ─── */}
         {stripPhotos.length > 0 && (
-          <div className="photo-strip anim-fade-up">
+          <div 
+            className="photo-strip anim-fade-up" 
+            onTouchStart={onStripTouchStart} 
+            onTouchEnd={onStripTouchEnd}
+          >
             <div className="strip-header">
               <span className="strip-label">Son anlar</span>
               <button className="strip-see-all" onClick={openFeed}>Tümünü gör →</button>
