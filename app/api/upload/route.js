@@ -1,41 +1,9 @@
 import { NextResponse } from 'next/server';
+import { db, bucket } from '../../../lib/firebase';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
-
-global.photoStore = global.photoStore || [];
-
-// ─── Vercel Blob index helpers ───
-async function readIndex(list) {
-  try {
-    const { blobs } = await list({ prefix: 'nisan-index', limit: 20 });
-    if (!blobs.length) return [];
-    // Sort newest first, use the latest
-    blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-    const res = await fetch(blobs[0].url, { next: { revalidate: 0 } });
-    return await res.json();
-  } catch {
-    return [];
-  }
-}
-
-async function writeIndex(entries, list, put, del) {
-  try {
-    // Remove all old index blobs first
-    const { blobs } = await list({ prefix: 'nisan-index', limit: 20 });
-    if (blobs.length > 0) {
-      await del(blobs.map(b => b.url));
-    }
-    // Write updated index
-    await put('nisan-index.json', JSON.stringify(entries, null, 0), {
-      access: 'public',
-      addRandomSuffix: false,
-      contentType: 'application/json',
-    });
-  } catch (e) {
-    console.error('writeIndex error:', e.message);
-  }
-}
 
 export async function POST(request) {
   try {
@@ -50,54 +18,51 @@ export async function POST(request) {
     const msg = (message || '').trim().substring(0, 200);
     const uploadedPhotos = [];
 
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      try {
-        const { put, list, del } = await import('@vercel/blob');
-
-        // Upload each image
-        for (const { dataUrl, filename } of images) {
-          const base64Data = dataUrl.split(',')[1];
-          const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
-          const ext = mimeType.includes('png') ? 'png' : 'jpg';
-          const ts = Date.now();
-          const buffer = Buffer.from(base64Data, 'base64');
-
-          const blob = await put(`nisan/${ts}.${ext}`, buffer, {
-            access: 'public',
-            contentType: mimeType,
-            addRandomSuffix: true,
-          });
-
-          uploadedPhotos.push({
-            url: blob.url,
-            name,
-            message: msg,
-            timestamp: ts,
-          });
-        }
-
-        // Update the index with new entries prepended
-        const current = await readIndex(list);
-        const updated = [...uploadedPhotos, ...current];
-        await writeIndex(updated, list, put, del);
-
-        return NextResponse.json({
-          success: true,
-          count: uploadedPhotos.length,
-          url: uploadedPhotos[0]?.url,
-          urls: uploadedPhotos.map(p => p.url),
-        });
-      } catch (blobErr) {
-        console.error("Blob error:", blobErr.message);
-      }
-    }
-
-    // Memory fallback
+    // Upload each image
     for (const { dataUrl, filename } of images) {
-      const entry = { url: dataUrl, name, message: msg, timestamp: Date.now() };
-      global.photoStore.unshift(entry);
-      uploadedPhotos.push(entry);
+      const base64Data = dataUrl.split(',')[1];
+      const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
+      const ext = mimeType.includes('png') ? 'png' : 'jpg';
+      const ts = Date.now();
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      const filePath = `nisan/${ts}_${Math.floor(Math.random()*1000)}.${ext}`;
+      const file = bucket.file(filePath);
+      
+      await file.save(buffer, {
+        contentType: mimeType,
+      });
+
+      // Get a long-lived signed URL to bypass security rules
+      const [url] = await file.getSignedUrl({
+        action: 'read',
+        expires: '01-01-2100'
+      });
+
+      uploadedPhotos.push({
+        type: 'photo',
+        url: url,
+        name,
+        message: msg,
+        timestamp: ts,
+        likes: [],
+        comments: []
+      });
     }
+
+    // Add to Firestore using ArrayUnion to prepend/append
+    const feedRef = db.collection('appData').doc('feed');
+    
+    // Using a transaction to ensure we prepend correctly or we can just read and write
+    await db.runTransaction(async (t) => {
+      const doc = await t.get(feedRef);
+      if (!doc.exists) {
+        t.set(feedRef, { posts: uploadedPhotos });
+      } else {
+        const currentPosts = doc.data().posts || [];
+        t.update(feedRef, { posts: [...uploadedPhotos, ...currentPosts] });
+      }
+    });
 
     return NextResponse.json({
       success: true,
