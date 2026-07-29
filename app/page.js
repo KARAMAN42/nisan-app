@@ -39,6 +39,7 @@ export default function Home() {
 
   // ─── Heart rain state ───
   const [flyingHearts, setFlyingHearts] = useState([]);
+  const [flyingComments, setFlyingComments] = useState([]);
 
   // ─── Guestbook state ───
   const [gbOpen, setGbOpen] = useState(false);
@@ -122,6 +123,7 @@ export default function Home() {
 
   // ─── Heart rain ───
   const fireHearts = (e) => {
+    if (!e) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
@@ -134,6 +136,25 @@ export default function Home() {
     }));
     setFlyingHearts(prev => [...prev, ...newHearts]);
     setTimeout(() => setFlyingHearts(prev => prev.filter(h => !newHearts.some(n => n.id === h.id))), 1400);
+  };
+
+  // ─── Sparkle rain for comments ───
+  const fireSparkles = (e) => {
+    if (!e) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const chars = ['✨', '💬', '✨', '💬', '✨'];
+    const newSparkles = Array.from({ length: 8 }, (_, i) => ({
+      id: Date.now() + i,
+      char: chars[i % chars.length],
+      x: cx + (Math.random() - 0.5) * 60,
+      y: cy,
+      dx: (Math.random() - 0.5) * 90,
+      size: 0.8 + Math.random() * 0.8,
+    }));
+    setFlyingComments(prev => [...prev, ...newSparkles]);
+    setTimeout(() => setFlyingComments(prev => prev.filter(s => !newSparkles.some(n => n.id === s.id))), 1400);
   };
 
   // ─── Like ───
@@ -159,7 +180,7 @@ export default function Home() {
     setCommentForms(prev => ({ ...prev, [url]: { ...(prev[url] || {}), [field]: val } }));
   };
 
-  const submitComment = async (photoUrl) => {
+  const submitComment = async (photoUrl, e) => {
     const form = commentForms[photoUrl] || {};
     const text = form.text?.trim();
     const name = form.name?.trim() || guestName?.trim() || '';
@@ -171,6 +192,7 @@ export default function Home() {
       const res = await fetch('/api/comment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photoUrl, name, text }) });
       const data = await res.json();
       if (data.success) {
+        fireSparkles(e);
         setFeedPosts(prev => prev.map(p => {
           if (p.url !== photoUrl) return p;
           return { ...p, commentCount: p.commentCount + 1, comments: [...(p.comments || []), data.comment] };
@@ -282,6 +304,11 @@ export default function Home() {
       {/* ─── FLYING HEARTS OVERLAY ─── */}
       {flyingHearts.map(h => (
         <div key={h.id} className="flying-heart" style={{ left: h.x, top: h.y, '--dx': h.dx + 'px', fontSize: h.size + 'rem' }}>🤍</div>
+      ))}
+
+      {/* ─── FLYING COMMENTS OVERLAY ─── */}
+      {flyingComments.map(s => (
+        <div key={s.id} className="flying-heart" style={{ left: s.x, top: s.y, '--dx': s.dx + 'px', fontSize: s.size + 'rem' }}>{s.char}</div>
       ))}
 
       <div className="minimalist-wrapper">
@@ -469,10 +496,10 @@ export default function Home() {
                           value={commentForms[post.url]?.text || ''}
                           onChange={e => updateForm(post.url, 'text', e.target.value)}
                           maxLength={200}
-                          onKeyDown={e => e.key === 'Enter' && submitComment(post.url)}
+                          onKeyDown={e => e.key === 'Enter' && submitComment(post.url, e)}
                           style={{ fontSize: '16px' }}
                         />
-                        <button className="feed-comment-send" onClick={() => submitComment(post.url)} disabled={submitting[post.url] || !(commentForms[post.url]?.text?.trim())}>
+                        <button className="feed-comment-send" onClick={(e) => submitComment(post.url, e)} disabled={submitting[post.url] || !(commentForms[post.url]?.text?.trim())}>
                           {submitting[post.url] ? '...' : '→'}
                         </button>
                       </div>
