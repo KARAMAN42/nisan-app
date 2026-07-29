@@ -80,12 +80,27 @@ export default function Home() {
         return serverPosts.map(serverPost => {
           const localPost = prev.find(p => p.url === serverPost.url);
           if (!localPost) return serverPost;
+
+          // Preserve local like state if server hasn't updated yet (due to Vercel blob write lag)
+          let finalLiked = serverPost.isLiked;
+          let finalLikeCount = serverPost.likeCount;
+          if (localPost.isLiked !== serverPost.isLiked) {
+            finalLiked = localPost.isLiked;
+            finalLikeCount = localPost.likeCount;
+          }
+
           const localCount = (localPost.comments || []).length;
           const serverCount = (serverPost.comments || []).length;
-          if (localCount > serverCount) {
-            return { ...serverPost, comments: localPost.comments, commentCount: Math.max(serverPost.commentCount, localPost.commentCount) };
-          }
-          return serverPost;
+          const finalComments = localCount > serverCount ? localPost.comments : serverPost.comments;
+          const finalCommentCount = Math.max(serverPost.commentCount, localPost.commentCount);
+
+          return {
+            ...serverPost,
+            isLiked: finalLiked,
+            likeCount: finalLikeCount,
+            comments: finalComments,
+            commentCount: finalCommentCount,
+          };
         });
       });
     } catch { }
@@ -266,7 +281,7 @@ export default function Home() {
 
       {/* ─── FLYING HEARTS OVERLAY ─── */}
       {flyingHearts.map(h => (
-        <div key={h.id} className="flying-heart" style={{ left: h.x, top: h.y, '--dx': h.dx + 'px', fontSize: h.size + 'rem' }}>♥</div>
+        <div key={h.id} className="flying-heart" style={{ left: h.x, top: h.y, '--dx': h.dx + 'px', fontSize: h.size + 'rem' }}>🤍</div>
       ))}
 
       <div className="minimalist-wrapper">
