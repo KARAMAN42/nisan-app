@@ -554,46 +554,62 @@ export default function AdminPage() {
 
             {/* ─── COMMENTS SECTION ─── */}
             {(() => {
-              const groupComments = group.photos.flatMap(photo =>
-                (allComments[photo.url] || []).map(c => ({ ...c, photoUrl: photo.url }))
-              ).sort((a, b) => b.timestamp - a.timestamp);
-              if (!groupComments.length) return null;
+              const photosWithComments = group.photos.filter(photo => allComments[photo.url] && allComments[photo.url].length > 0);
+              
+              if (photosWithComments.length === 0) return null;
+              
+              const totalGroupComments = photosWithComments.reduce((sum, p) => sum + allComments[p.url].length, 0);
               const panelKey = group.name;
               const isOpen = openCommentPanels[panelKey];
+              
               return (
                 <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
                   <button
                     onClick={() => setOpenCommentPanels(prev => ({ ...prev, [panelKey]: !prev[panelKey] }))}
                     style={{ width: '100%', background: 'none', border: 'none', padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#555' }}
                   >
-                    <span>{groupComments.length} Yorum</span>
+                    <span>{totalGroupComments} Yorum</span>
                     <span style={{ transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', fontSize: '0.7rem' }}>▼</span>
                   </button>
                   {isOpen && (
-                    <div style={{ padding: '0 1rem 0.8rem' }}>
-                      {groupComments.map((c, ci) => (
-                        <div key={ci} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '0.5rem 0', borderBottom: ci < groupComments.length - 1 ? '1px solid #f5f5f5' : 'none' }}>
-                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e0e0e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0, color: '#555' }}>
-                            {(c.name || 'M').charAt(0)}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.82rem' }}>{c.name} </span>
-                            <span style={{ fontSize: '0.85rem', color: '#333' }}>{c.text}</span>
-                            <div style={{ fontSize: '0.68rem', color: '#bbb', marginTop: 2 }}>
-                              {new Date(c.timestamp).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    <div style={{ padding: '0 0.8rem 0.8rem' }}>
+                      {photosWithComments.map((photo, pi) => {
+                        const comments = [...allComments[photo.url]].sort((a, b) => b.timestamp - a.timestamp);
+                        return (
+                          <div key={pi} style={{ marginBottom: pi < photosWithComments.length - 1 ? '1rem' : 0, background: '#fff', border: '1px solid #f0f0f0', borderRadius: 12, overflow: 'hidden' }}>
+                            {/* Photo Thumbnail Header */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f8f8fa', padding: '8px 10px', borderBottom: '1px solid #f0f0f0' }}>
+                              <img src={photo.url} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', border: '1px solid rgba(0,0,0,0.05)' }} alt="Yorum yapılan fotoğraf" />
+                              <div style={{ fontSize: '0.8rem', color: '#444', fontWeight: 600 }}>Bu fotoğrafa yapılan yorumlar</div>
+                            </div>
+                            
+                            {/* Comments List */}
+                            <div style={{ padding: '0 10px' }}>
+                              {comments.map((c, ci) => (
+                                <div key={ci} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '0.6rem 0', borderBottom: ci < comments.length - 1 ? '1px solid #f5f5f5' : 'none' }}>
+                                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e0e0e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0, color: '#555' }}>
+                                    {(c.name || 'M').charAt(0)}
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.82rem' }}>{c.name} </span>
+                                    <span style={{ fontSize: '0.85rem', color: '#333' }}>{c.text}</span>
+                                    <div style={{ fontSize: '0.68rem', color: '#bbb', marginTop: 2 }}>
+                                      {new Date(c.timestamp).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => deleteComment(photo.url, c.timestamp)}
+                                    disabled={deletingComment === c.timestamp}
+                                    style={{ background: '#ffeeee', color: '#e53935', border: 'none', fontSize: '0.75rem', cursor: 'pointer', padding: '4px 8px', borderRadius: 6, flexShrink: 0, fontWeight: 600 }}
+                                  >
+                                    Sil
+                                  </button>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                          <button
-                            onClick={() => deleteComment(c.photoUrl, c.timestamp)}
-                            disabled={deletingComment === c.timestamp}
-                            style={{ background: 'none', border: 'none', color: '#ccc', fontSize: '0.75rem', cursor: 'pointer', padding: '2px 5px', borderRadius: 4, flexShrink: 0, transition: 'color 0.15s' }}
-                            onMouseEnter={e => e.currentTarget.style.color = '#e53935'}
-                            onMouseLeave={e => e.currentTarget.style.color = '#ccc'}
-                          >
-                            Sil
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
