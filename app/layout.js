@@ -23,6 +23,13 @@ export const metadata = {
   description: "Yusuf ve Şevval'in nişan töreni için fotoğraf paylaşım sayfası.",
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="tr" className={`${playfair.variable} ${lato.variable} ${greatVibes.variable}`}>

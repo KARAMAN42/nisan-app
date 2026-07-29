@@ -770,3 +770,22 @@ body {
   animation: spin 0.9s linear infinite;
   margin: 0 auto;
 }
+
+/* Comment validation error */
+.feed-comment-error {
+  color: #e53935;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 0.25rem 0.1rem 0.25rem;
+  animation: fadeUp 0.2s ease;
+}
+
+.feed-comment-name-input.input-error {
+  border-color: #e53935;
+  background: #fff5f5;
+}
+
+/* Prevent iOS zoom on all inputs globally */
+input, textarea, select {
+  font-size: 16px;
+}

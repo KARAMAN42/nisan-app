@@ -33,6 +33,7 @@ export default function Home() {
   const [openComments, setOpenComments] = useState({}); // url -> bool
   const [commentForms, setCommentForms] = useState({}); // url -> {name, text}
   const [submitting, setSubmitting] = useState({}); // url -> bool
+  const [commentErrors, setCommentErrors] = useState({}); // url -> error string
   const pollRef = useRef(null);
   const feedScrollRef = useRef(null);
 
@@ -78,9 +79,9 @@ export default function Home() {
     setLoadingFeed(true);
     await fetchFeed(visitorId);
     setLoadingFeed(false);
-    // Poll every 8s
+    // Poll every 3s for near real-time feel
     if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => fetchFeed(visitorId), 8000);
+    pollRef.current = setInterval(() => fetchFeed(visitorId), 3000);
   };
 
   const closeFeed = () => {
@@ -119,8 +120,18 @@ export default function Home() {
   const submitComment = async (photoUrl) => {
     const form = commentForms[photoUrl] || {};
     const text = form.text?.trim();
-    const name = (form.name?.trim() || guestName || 'Misafir');
-    if (!text) return;
+    const name = form.name?.trim() || guestName?.trim() || '';
+
+    // Validation
+    if (!name) {
+      setCommentErrors(prev => ({ ...prev, [photoUrl]: 'Lütfen adınızı girin.' }));
+      return;
+    }
+    if (!text) {
+      setCommentErrors(prev => ({ ...prev, [photoUrl]: 'Yorum boş olamaz.' }));
+      return;
+    }
+    setCommentErrors(prev => ({ ...prev, [photoUrl]: '' }));
 
     setSubmitting(prev => ({ ...prev, [photoUrl]: true }));
     try {
@@ -131,11 +142,14 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.success) {
+        // Optimistically add comment
         setFeedPosts(prev => prev.map(p => {
           if (p.url !== photoUrl) return p;
           return { ...p, commentCount: p.commentCount + 1, comments: [...(p.comments || []), data.comment] };
         }));
         updateForm(photoUrl, 'text', '');
+        // Immediately re-fetch so everyone sees the new comment
+        fetchFeed(visitorId);
       }
     } catch { }
     finally { setSubmitting(prev => ({ ...prev, [photoUrl]: false })); }
@@ -370,12 +384,16 @@ export default function Home() {
                   {/* Comment Form */}
                   <div className="feed-comment-form">
                     <input
-                      className="feed-comment-name-input"
-                      placeholder="Adınız"
+                      className={`feed-comment-name-input${commentErrors[post.url] && !commentForms[post.url]?.name?.trim() ? ' input-error' : ''}`}
+                      placeholder="Adınız (zorunlu)"
                       value={commentForms[post.url]?.name || ''}
-                      onChange={e => updateForm(post.url, 'name', e.target.value)}
+                      onChange={e => { updateForm(post.url, 'name', e.target.value); setCommentErrors(prev => ({ ...prev, [post.url]: '' })); }}
                       maxLength={40}
+                      style={{ fontSize: '16px' }}
                     />
+                    {commentErrors[post.url] && (
+                      <div className="feed-comment-error">{commentErrors[post.url]}</div>
+                    )}
                     <div className="feed-comment-row">
                       <input
                         className="feed-comment-text-input"
@@ -384,6 +402,7 @@ export default function Home() {
                         onChange={e => updateForm(post.url, 'text', e.target.value)}
                         maxLength={200}
                         onKeyDown={e => e.key === 'Enter' && submitComment(post.url)}
+                        style={{ fontSize: '16px' }}
                       />
                       <button
                         className="feed-comment-send"
