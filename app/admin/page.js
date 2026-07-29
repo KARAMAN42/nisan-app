@@ -25,6 +25,8 @@ export default function AdminPage() {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [diagnostics, setDiagnostics] = useState({});
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   // Comments
   const [allComments, setAllComments] = useState({}); // photoUrl -> comments[]
@@ -43,7 +45,17 @@ export default function AdminPage() {
   const [selected, setSelected] = useState(new Set());
   const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => { fetchPhotos(); fetchComments(); }, []);
+  useEffect(() => { fetchPhotos(); fetchComments(); fetchStats(); }, []);
+
+  const fetchStats = async () => {
+    setStatsLoading(true);
+    try {
+      const res = await fetch('/api/stats');
+      const data = await res.json();
+      if (!data.error) setStats(data);
+    } catch {}
+    finally { setStatsLoading(false); }
+  };
 
   const fetchPhotos = async () => {
     setLoading(true);
@@ -292,6 +304,87 @@ export default function AdminPage() {
       </header>
 
 
+
+      {/* ─── STORAGE STATS CARD ─── */}
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: '0.8rem 0 0' }}>
+        <div style={{
+          margin: '0 0 0.8rem',
+          background: 'white',
+          borderRadius: 16,
+          overflow: 'hidden',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+          padding: '1rem 1.2rem',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: '1.1rem' }}>☁️</span> Firebase Depolama
+            </div>
+            <button
+              onClick={fetchStats}
+              disabled={statsLoading}
+              style={{ background: '#f2f2f7', border: 'none', borderRadius: 20, padding: '0.3rem 0.7rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', color: '#555' }}
+            >
+              {statsLoading ? '...' : '↻ Yenile'}
+            </button>
+          </div>
+
+          {statsLoading && !stats ? (
+            <div style={{ color: '#bbb', fontSize: '0.85rem', textAlign: 'center', padding: '0.5rem 0' }}>Yükleniyor...</div>
+          ) : stats ? (
+            <>
+              {/* Storage Bar */}
+              <div style={{ marginBottom: '0.9rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#666', marginBottom: '0.35rem' }}>
+                  <span><b style={{ color: '#1a1a1a' }}>{stats.storage.usedMB} MB</b> kullanıldı</span>
+                  <span style={{ color: '#aaa' }}>Limit: 5 GB ücretsiz</span>
+                </div>
+                <div style={{ height: 8, background: '#f2f2f7', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.min(parseFloat(stats.storage.percent), 100)}%`,
+                    background: parseFloat(stats.storage.percent) > 80 ? '#ff3b30' : parseFloat(stats.storage.percent) > 50 ? '#ff9500' : '#34c759',
+                    borderRadius: 99,
+                    transition: 'width 0.8s cubic-bezier(0.34,1.56,0.64,1)',
+                    minWidth: parseFloat(stats.storage.percent) > 0 ? 6 : 0,
+                  }} />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#bbb', marginTop: '0.3rem', textAlign: 'right' }}>
+                  %{stats.storage.percent} dolu · {stats.storage.fileCount} dosya
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                {[
+                  { label: 'Fotoğraf', value: stats.firestore.photoCount, emoji: '📷' },
+                  { label: 'Defteri', value: stats.firestore.guestbookCount, emoji: '📝' },
+                  { label: 'Yorum', value: stats.firestore.totalComments, emoji: '💬' },
+                  { label: 'Beğeni', value: stats.firestore.totalLikes, emoji: '❤️' },
+                ].map(({ label, value, emoji }) => (
+                  <div key={label} style={{ background: '#f8f8fa', borderRadius: 12, padding: '0.6rem 0.4rem', textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.1rem', marginBottom: 2 }}>{emoji}</div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1a1a1a' }}>{value}</div>
+                    <div style={{ fontSize: '0.68rem', color: '#aaa', marginTop: 1 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Remaining estimate */}
+              <div style={{ marginTop: '0.75rem', padding: '0.55rem 0.8rem', background: '#f8f8fa', borderRadius: 10, fontSize: '0.78rem', color: '#555', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>💡</span>
+                <span>
+                  <b style={{ color: '#1a1a1a' }}>{((5 * 1024) - parseFloat(stats.storage.usedMB)).toFixed(0)} MB</b> kalan alan var.
+                  {parseFloat(stats.storage.percent) < 5 && ' Nişan günü için bol alan mevcut! 🎉'}
+                  {parseFloat(stats.storage.percent) >= 5 && parseFloat(stats.storage.percent) < 50 && ' Uzun süre sorunsuz çalışır.'}
+                  {parseFloat(stats.storage.percent) >= 50 && ' Depolamayı takip etmeye devam edin.'}
+                </span>
+              </div>
+            </>
+          ) : (
+            <div style={{ color: '#bbb', fontSize: '0.85rem', textAlign: 'center', padding: '0.5rem 0' }}>Veri alınamadı</div>
+          )}
+        </div>
+      </div>
 
       {/* ─── GROUPED CONTENT ─── */}
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "0.8rem 0 5rem" }}>
