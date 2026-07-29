@@ -266,7 +266,7 @@ export default function Home() {
 
       {/* ─── FLYING HEARTS OVERLAY ─── */}
       {flyingHearts.map(h => (
-        <div key={h.id} className="flying-heart" style={{ left: h.x, top: h.y, '--dx': h.dx + 'px', fontSize: h.size + 'rem' }}>❤️</div>
+        <div key={h.id} className="flying-heart" style={{ left: h.x, top: h.y, '--dx': h.dx + 'px', fontSize: h.size + 'rem' }}>♥</div>
       ))}
 
       <div className="minimalist-wrapper">
@@ -289,12 +289,12 @@ export default function Home() {
             </button>
             {/* Guestbook button */}
             <button className="guestbook-btn" onClick={() => { setGbOpen(true); setGbSuccess(false); setGbError(''); }}>
-              ✏️ Mesaj Bırak
+              Mesaj Bırak
             </button>
-            <p className="instruction-text">Fotoğraflarınızla bu güzel anları ölümsüzleştirin ✨</p>
+            <p className="instruction-text">Fotoğraflarınızla bu güzel anları ölümsüzleştirin</p>
             {success && (
               <p className="success-msg">
-                {successCount > 1 ? `${successCount} fotoğraf eklendi 🤍` : "Fotoğrafınız eklendi 🤍"}
+                {successCount > 1 ? `${successCount} fotoğraf eklendi` : "Fotoğrafınız eklendi"}
               </p>
             )}
           </div>
@@ -323,7 +323,7 @@ export default function Home() {
         {stripPhotos.length > 0 && (
           <div className="photo-strip anim-fade-up">
             <div className="strip-header">
-              <span className="strip-label">📸 Son anlar</span>
+              <span className="strip-label">Son anlar</span>
               <button className="strip-see-all" onClick={openFeed}>Tümünü gör →</button>
             </div>
             <div className="strip-scroll">
@@ -343,7 +343,7 @@ export default function Home() {
       {/* ─── FEED OVERLAY ─── */}
       <div className={`feed-overlay${feedOpen ? ' open' : ''}`}>
         <div className="feed-header">
-          <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>🤍 Nişan Anları</div>
+          <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>Nişan Anları</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: '0.78rem', color: '#999' }}>{feedPosts.length} paylaşım</span>
             <button className="feed-close-btn" onClick={closeFeed}>✕</button>
@@ -358,7 +358,7 @@ export default function Home() {
             </div>
           ) : displayPosts.length === 0 ? (
             <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#aaa' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📷</div>
+              <div style={{ fontSize: '2rem', marginBottom: '1rem', color: '#ccc' }}>[ ]</div>
               <div style={{ fontWeight: 500 }}>Henüz paylaşım yok.</div>
               <div style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>İlk fotoğrafı veya mesajı sen bırak!</div>
             </div>
@@ -373,7 +373,7 @@ export default function Home() {
                     </div>
                     <div>
                       <div className="feed-post-name">{post.name}</div>
-                      <div className="feed-post-time">📖 Anı Defteri · {timeAgo(post.timestamp)}</div>
+                      <div className="feed-post-time">Anı Defteri · {timeAgo(post.timestamp)}</div>
                     </div>
                   </div>
                   <div className="guestbook-message">"{post.message}"</div>
@@ -386,7 +386,7 @@ export default function Home() {
               <div key={i} className="feed-post" style={{ animation: `fadeUp 0.4s ease both ${i * 0.05}s` }}>
                 {/* Most liked badge */}
                 {post.isMostLiked && (
-                  <div className="most-liked-badge">⭐ En Sevilen An</div>
+                  <div className="most-liked-badge">En Sevilen An</div>
                 )}
 
                 <div className="feed-post-header">
@@ -407,12 +407,11 @@ export default function Home() {
                     className={`feed-like-btn${post.isLiked ? ' liked' : ''}`}
                     onClick={(e) => handleLike(post.url, e)}
                   >
-                    <span className="heart-icon">{post.isLiked ? '❤️' : '🤍'}</span>
+                    <span className="heart-icon">{post.isLiked ? '♥' : '♡'}</span>
                     <span>{post.likeCount > 0 ? post.likeCount : ''}</span>
                     <span style={{ fontSize: '0.82rem' }}>{post.isLiked ? 'Beğenildi' : 'Beğen'}</span>
                   </button>
                   <button className="feed-comment-btn" onClick={() => toggleComments(post.url)}>
-                    <span>💬</span>
                     <span>{post.commentCount > 0 ? post.commentCount : ''}</span>
                     <span style={{ fontSize: '0.82rem' }}>Yorum</span>
                   </button>
@@ -459,7 +458,7 @@ export default function Home() {
                           style={{ fontSize: '16px' }}
                         />
                         <button className="feed-comment-send" onClick={() => submitComment(post.url)} disabled={submitting[post.url] || !(commentForms[post.url]?.text?.trim())}>
-                          {submitting[post.url] ? '⏳' : '➤'}
+                          {submitting[post.url] ? '...' : '→'}
                         </button>
                       </div>
                     </div>
@@ -496,20 +495,20 @@ export default function Home() {
         <input type="file" accept="image/*" multiple className="file-input" ref={fileInputRef} onChange={handleFileSelect} />
         {error && <p className="sheet-error">{error}</p>}
         <button className="sheet-upload-btn" onClick={handleUpload} disabled={uploading || !selectedFiles.length}>
-          {uploading ? (<><span className="loading-spinner" />{uploadProgress || "Yükleniyor..."}</>) : ("Yükle 🤍")}
+          {uploading ? (<><span className="loading-spinner" />{uploadProgress || "Yükleniyor..."}</>) : ("Yükle")}
         </button>
       </div>
 
       {/* ─── GUESTBOOK BOTTOM SHEET ─── */}
       <div className={`bottom-sheet ${gbOpen ? "open" : ""}`}>
         <div className="sheet-handle" />
-        <h2 className="sheet-title">📖 Anı Defteri</h2>
+        <h2 className="sheet-title">Anı Defteri</h2>
         <p style={{ fontSize: '0.85rem', color: '#888', marginBottom: '1rem', lineHeight: 1.4 }}>
           Yusuf & Şevval'e fotoğraf göndermek yerine sadece güzel dileklerinizi bırakmak ister misiniz?
         </p>
         {gbSuccess ? (
           <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🤍</div>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem', color: '#888' }}>&#10003;</div>
             <div style={{ fontWeight: 600, fontSize: '1rem' }}>Mesajınız iletildi!</div>
             <div style={{ fontSize: '0.85rem', color: '#888', marginTop: '0.4rem' }}>Teşekkürler, güzel dilekleriniz için.</div>
           </div>
@@ -525,7 +524,7 @@ export default function Home() {
             </div>
             {gbError && <p className="sheet-error">{gbError}</p>}
             <button className="sheet-upload-btn" onClick={submitGuestbook} disabled={gbSubmitting}>
-              {gbSubmitting ? (<><span className="loading-spinner" />Gönderiliyor...</>) : "Mesajı Gönder 🤍"}
+              {gbSubmitting ? (<><span className="loading-spinner" />Gönderiliyor...</>) : "Mesajı Gönder"}
             </button>
           </>
         )}

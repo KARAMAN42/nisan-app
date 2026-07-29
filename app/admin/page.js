@@ -299,7 +299,6 @@ export default function AdminPage() {
           <div style={{ textAlign: "center", padding: "4rem", color: "#aaa" }}>Yükleniyor...</div>
         ) : groups.length === 0 ? (
           <div style={{ textAlign: "center", padding: "5rem 1rem", color: "#aaa" }}>
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📷</div>
             <div style={{ fontWeight: 500 }}>Henüz fotoğraf yok.</div>
           </div>
         ) : groups.map((group, groupIdx) => (
@@ -351,7 +350,7 @@ export default function AdminPage() {
                   onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.95)")}
                   onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
                 >
-                  {group.photos.length > 1 ? "📥 Tümünü Kaydet" : "📥 Kaydet"}
+                  {group.photos.length > 1 ? "Tümünü Kaydet" : "Kaydet"}
                 </button>
               </div>
 
@@ -427,7 +426,7 @@ export default function AdminPage() {
                     onClick={() => setOpenCommentPanels(prev => ({ ...prev, [panelKey]: !prev[panelKey] }))}
                     style={{ width: '100%', background: 'none', border: 'none', padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#555' }}
                   >
-                    <span>💬 {groupComments.length} Yorum</span>
+                    <span>{groupComments.length} Yorum</span>
                     <span style={{ transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', fontSize: '0.7rem' }}>▼</span>
                   </button>
                   {isOpen && (
@@ -441,7 +440,6 @@ export default function AdminPage() {
                             <span style={{ fontWeight: 700, fontSize: '0.82rem' }}>{c.name} </span>
                             <span style={{ fontSize: '0.85rem', color: '#333' }}>{c.text}</span>
                             <div style={{ fontSize: '0.68rem', color: '#bbb', marginTop: 2 }}>
-                              {c.photoUrl && <span style={{ color: '#aaa', fontSize: '0.65rem', marginRight: 4 }}>📷</span>}
                               {new Date(c.timestamp).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             </div>
                           </div>
@@ -452,7 +450,7 @@ export default function AdminPage() {
                             onMouseEnter={e => e.currentTarget.style.color = '#e53935'}
                             onMouseLeave={e => e.currentTarget.style.color = '#ccc'}
                           >
-                            🗑️
+                            Sil
                           </button>
                         </div>
                       ))}
@@ -469,7 +467,7 @@ export default function AdminPage() {
       {selectMode && selected.size > 0 && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "1rem", background: "rgba(255,255,255,0.96)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(0,0,0,0.08)", display: "flex", justifyContent: "center", zIndex: 30 }}>
           <button onClick={saveSelected} disabled={downloading} style={{ background: "#1a1a1a", color: "white", border: "none", borderRadius: 50, padding: "0.9rem 2rem", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer" }}>
-            {downloading ? "⏳ Hazırlanıyor..." : `📥 ${selected.size} Fotoğrafı Kaydet`}
+            {downloading ? "Hazırlanıyor..." : `${selected.size} Fotoğrafı Kaydet`}
           </button>
         </div>
       )}
@@ -512,7 +510,7 @@ export default function AdminPage() {
                 onClick={() => savePhoto(flatPhotos[lbIndex]?.url, flatPhotos[lbIndex]?.name)}
                 style={{ background: "white", color: "#1a1a1a", border: "none", borderRadius: 50, padding: "0.7rem 1.6rem", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", marginLeft: "auto" }}
               >
-                📥 Kaydet
+                Kaydet
               </button>
             </div>
           </div>
