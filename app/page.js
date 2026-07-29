@@ -166,16 +166,6 @@ export default function Home() {
     finally { setSubmitting(prev => ({ ...prev, [photoUrl]: false })); }
   };
 
-  const deleteComment = async (photoUrl, timestamp) => {
-    // Optimistic remove
-    setFeedPosts(prev => prev.map(p => {
-      if (p.url !== photoUrl) return p;
-      return { ...p, commentCount: p.commentCount - 1, comments: (p.comments || []).filter(c => c.timestamp !== timestamp) };
-    }));
-    try {
-      await fetch('/api/comment', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photoUrl, timestamp }) });
-    } catch { }
-  };
 
   // ─── Guestbook ───
   const submitGuestbook = async () => {
@@ -441,7 +431,6 @@ export default function Home() {
                               <span className="feed-comment-text"> {c.text}</span>
                               <div className="feed-comment-time">{timeAgo(c.timestamp)}</div>
                             </div>
-                            <button className="comment-delete-btn" onClick={() => deleteComment(post.url, c.timestamp)} title="Yorumu sil">✕</button>
                           </div>
                         ))}
                       </div>

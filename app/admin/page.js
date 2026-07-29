@@ -26,6 +26,11 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [diagnostics, setDiagnostics] = useState({});
 
+  // Comments
+  const [allComments, setAllComments] = useState({}); // photoUrl -> comments[]
+  const [openCommentPanels, setOpenCommentPanels] = useState({}); // photoUrl -> bool
+  const [deletingComment, setDeletingComment] = useState(null);
+
   // Lightbox — flat index over ALL photos
   const [lbIndex, setLbIndex] = useState(null);
   const [dragY, setDragY] = useState(0);
@@ -38,7 +43,7 @@ export default function AdminPage() {
   const [selected, setSelected] = useState(new Set());
   const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => { fetchPhotos(); }, []);
+  useEffect(() => { fetchPhotos(); fetchComments(); }, []);
 
   const fetchPhotos = async () => {
     setLoading(true);
@@ -51,6 +56,41 @@ export default function AdminPage() {
       setLoading(false);
     }
   };
+
+  const fetchComments = async () => {
+    try {
+      const res = await fetch("/api/feed?vid=admin");
+      const data = await res.json();
+      const map = {};
+      for (const post of (data.posts || [])) {
+        if (post.url && post.comments?.length) map[post.url] = post.comments;
+      }
+      setAllComments(map);
+    } catch { }
+  };
+
+  const toggleCommentPanel = (photoUrl) => {
+    setOpenCommentPanels(prev => ({ ...prev, [photoUrl]: !prev[photoUrl] }));
+  };
+
+  const deleteComment = async (photoUrl, timestamp) => {
+    setDeletingComment(timestamp);
+    // Optimistic remove
+    setAllComments(prev => ({
+      ...prev,
+      [photoUrl]: (prev[photoUrl] || []).filter(c => c.timestamp !== timestamp),
+    }));
+    try {
+      await fetch('/api/comment', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoUrl, timestamp }),
+      });
+    } catch { }
+    finally { setDeletingComment(null); }
+  };
+
+  const totalCommentCount = Object.values(allComments).reduce((s, arr) => s + arr.length, 0);
 
   const groups = groupByGuest(photos);
 
@@ -233,7 +273,7 @@ export default function AdminPage() {
             {selectMode ? `${selected.size} seçildi` : "Özel Galeri"}
           </div>
           <div style={{ fontSize: "0.78rem", color: "#888", marginTop: "2px" }}>
-            {groups.length} misafir · {photos.length} fotoğraf
+            {groups.length} misafir · {photos.length} fotoğraf · {totalCommentCount} yorum
           </div>
         </div>
         <div style={{ display: "flex", gap: "8px" }}>
@@ -372,6 +412,55 @@ export default function AdminPage() {
                 );
               })}
             </div>
+
+            {/* ─── COMMENTS SECTION ─── */}
+            {(() => {
+              const groupComments = group.photos.flatMap(photo =>
+                (allComments[photo.url] || []).map(c => ({ ...c, photoUrl: photo.url }))
+              ).sort((a, b) => b.timestamp - a.timestamp);
+              if (!groupComments.length) return null;
+              const panelKey = group.name;
+              const isOpen = openCommentPanels[panelKey];
+              return (
+                <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                  <button
+                    onClick={() => setOpenCommentPanels(prev => ({ ...prev, [panelKey]: !prev[panelKey] }))}
+                    style={{ width: '100%', background: 'none', border: 'none', padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#555' }}
+                  >
+                    <span>💬 {groupComments.length} Yorum</span>
+                    <span style={{ transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', fontSize: '0.7rem' }}>▼</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{ padding: '0 1rem 0.8rem' }}>
+                      {groupComments.map((c, ci) => (
+                        <div key={ci} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '0.5rem 0', borderBottom: ci < groupComments.length - 1 ? '1px solid #f5f5f5' : 'none' }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e0e0e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0, color: '#555' }}>
+                            {(c.name || 'M').charAt(0)}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.82rem' }}>{c.name} </span>
+                            <span style={{ fontSize: '0.85rem', color: '#333' }}>{c.text}</span>
+                            <div style={{ fontSize: '0.68rem', color: '#bbb', marginTop: 2 }}>
+                              {c.photoUrl && <span style={{ color: '#aaa', fontSize: '0.65rem', marginRight: 4 }}>📷</span>}
+                              {new Date(c.timestamp).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => deleteComment(c.photoUrl, c.timestamp)}
+                            disabled={deletingComment === c.timestamp}
+                            style={{ background: 'none', border: 'none', color: '#ccc', fontSize: '0.75rem', cursor: 'pointer', padding: '2px 5px', borderRadius: 4, flexShrink: 0, transition: 'color 0.15s' }}
+                            onMouseEnter={e => e.currentTarget.style.color = '#e53935'}
+                            onMouseLeave={e => e.currentTarget.style.color = '#ccc'}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         ))}
       </main>
