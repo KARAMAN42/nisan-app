@@ -847,12 +847,12 @@ input, textarea, select {
 
 .guestbook-message {
   padding: 1rem 1.2rem 1.2rem;
-  font-size: 1rem;
+  font-size: 0.97rem;
   color: #3d2c8d;
   font-style: italic;
-  line-height: 1.6;
-  font-family: var(--font-script), cursive;
-  font-size: 1.15rem;
+  line-height: 1.65;
+  font-family: var(--font-body), -apple-system, sans-serif;
+  font-weight: 400;
 }
 
 /* ─── COMMENT DELETE BUTTON ─── */
