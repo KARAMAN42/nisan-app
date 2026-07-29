@@ -10,7 +10,15 @@ const isImage = (url) => {
   return IMAGE_EXTS.some(e => clean.endsWith(e));
 };
 
+let cachedPhotos = null;
+let lastPhotosFetch = 0;
+
 export async function GET() {
+  const now = Date.now();
+  if (cachedPhotos && (now - lastPhotosFetch < 15000)) {
+    return NextResponse.json(cachedPhotos);
+  }
+
   let photos = [];
   let isBlobActive = false;
 
@@ -24,10 +32,12 @@ export async function GET() {
         const { blobs: indexBlobs } = await list({ prefix: 'nisan-index', limit: 10 });
         if (indexBlobs.length > 0) {
           indexBlobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-          const res = await fetch(indexBlobs[0].url + '?nc=' + Date.now());
-          const entries = await res.json();
-          for (const e of entries) {
-            if (e?.url) indexMap.set(e.url, e);
+          const res = await fetch(indexBlobs[0].url, { next: { revalidate: 15 } });
+          if (res.ok) {
+            const entries = await res.json();
+            for (const e of entries) {
+              if (e?.url) indexMap.set(e.url, e);
+            }
           }
         }
       } catch (e) {
@@ -95,12 +105,17 @@ export async function GET() {
     return true;
   });
 
-  return NextResponse.json({
+  const result = {
     photos: unique,
     diagnostics: {
       hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
       isBlobActive,
       count: unique.length,
     },
-  });
+  };
+
+  cachedPhotos = result;
+  lastPhotosFetch = now;
+
+  return NextResponse.json(result);
 }

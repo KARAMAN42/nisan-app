@@ -5,14 +5,29 @@ global.likesStore = global.likesStore || {};
 global.commentsStore = global.commentsStore || {};
 global.guestbookStore = global.guestbookStore || [];
 
+let cachedIndexes = {};
+let lastFetchTime = {};
+
 async function readJson(prefix, list) {
+  const now = Date.now();
+  if (cachedIndexes[prefix] && (now - (lastFetchTime[prefix] || 0) < 15000)) {
+    return cachedIndexes[prefix];
+  }
+
   try {
     const { blobs } = await list({ prefix, limit: 5 });
     if (!blobs.length) return null;
     blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-    const res = await fetch(blobs[0].url + '?nc=' + Date.now());
-    return await res.json();
-  } catch { return null; }
+    // Use Next.js fetch caching instead of Date.now() cache busting
+    const res = await fetch(blobs[0].url, { next: { revalidate: 15 } });
+    if (!res.ok) return cachedIndexes[prefix] || null;
+    const data = await res.json();
+    cachedIndexes[prefix] = data;
+    lastFetchTime[prefix] = now;
+    return data;
+  } catch (e) {
+    return cachedIndexes[prefix] || null;
+  }
 }
 
 export async function GET(request) {

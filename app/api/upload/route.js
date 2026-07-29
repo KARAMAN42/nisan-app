@@ -12,7 +12,7 @@ async function readIndex(list) {
     if (!blobs.length) return [];
     // Sort newest first, use the latest
     blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-    const res = await fetch(blobs[0].url + '?nc=' + Date.now());
+    const res = await fetch(blobs[0].url, { next: { revalidate: 0 } });
     return await res.json();
   } catch {
     return [];
