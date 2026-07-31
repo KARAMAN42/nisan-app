@@ -445,7 +445,7 @@ export default function Home() {
           ) : displayPosts.map((post, i) => {
             const postId = post.url || post.timestamp;
             
-            const PostActionsAndComments = () => (
+            const postActionsAndCommentsJSX = (
               <>
                 {/* Actions */}
                 <div className="feed-actions">
@@ -527,7 +527,7 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="guestbook-message">"{post.message}"</div>
-                  <PostActionsAndComments />
+                  {postActionsAndCommentsJSX}
                 </div>
               );
             }
@@ -551,7 +551,7 @@ export default function Home() {
                 <div className="feed-photo-wrap">
                   <img src={post.url} alt={post.name} className="feed-photo" loading="lazy" />
                 </div>
-                <PostActionsAndComments />
+                {postActionsAndCommentsJSX}
               </div>
             );
           })}
