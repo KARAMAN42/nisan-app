@@ -178,53 +178,53 @@ export default function Home() {
   };
 
   // ─── Like ───
-  const handleLike = async (photoUrl, e) => {
-    const post = feedPosts.find(p => p.url === photoUrl);
+  const handleLike = async (postId, e) => {
+    const post = feedPosts.find(p => (p.url || p.timestamp) === postId);
     if (post && !post.isLiked) fireHearts(e);
     setFeedPosts(prev => prev.map(p => {
-      if (p.url !== photoUrl) return p;
+      if ((p.url || p.timestamp) !== postId) return p;
       return { ...p, isLiked: !p.isLiked, likeCount: p.isLiked ? p.likeCount - 1 : p.likeCount + 1 };
     }));
     try {
-      await fetch('/api/like', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photoUrl, visitorId }) });
+      await fetch('/api/like', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photoUrl: postId, visitorId }) });
     } catch { }
   };
 
   // ─── Comments ───
-  const toggleComments = (url) => {
-    setOpenComments(prev => ({ ...prev, [url]: !prev[url] }));
-    if (!commentForms[url]) setCommentForms(prev => ({ ...prev, [url]: { name: guestName || '', text: '' } }));
+  const toggleComments = (postId) => {
+    setOpenComments(prev => ({ ...prev, [postId]: !prev[postId] }));
+    if (!commentForms[postId]) setCommentForms(prev => ({ ...prev, [postId]: { name: guestName || '', text: '' } }));
   };
 
-  const updateForm = (url, field, val) => {
-    setCommentForms(prev => ({ ...prev, [url]: { ...(prev[url] || {}), [field]: val } }));
+  const updateForm = (postId, field, val) => {
+    setCommentForms(prev => ({ ...prev, [postId]: { ...(prev[postId] || {}), [field]: val } }));
   };
 
-  const submitComment = async (photoUrl, e) => {
-    const form = commentForms[photoUrl] || {};
+  const submitComment = async (postId, e) => {
+    const form = commentForms[postId] || {};
     const text = form.text?.trim();
     const name = form.name?.trim() || guestName?.trim() || '';
-    if (!name) { setCommentErrors(prev => ({ ...prev, [photoUrl]: 'Lütfen adınızı girin.' })); return; }
-    if (!text) { setCommentErrors(prev => ({ ...prev, [photoUrl]: 'Yorum boş olamaz.' })); return; }
-    setCommentErrors(prev => ({ ...prev, [photoUrl]: '' }));
+    if (!name) { setCommentErrors(prev => ({ ...prev, [postId]: 'Lütfen adınızı girin.' })); return; }
+    if (!text) { setCommentErrors(prev => ({ ...prev, [postId]: 'Yorum boş olamaz.' })); return; }
+    setCommentErrors(prev => ({ ...prev, [postId]: '' }));
 
     // Capture the target element rect synchronously before the await fetch
     const rect = e?.currentTarget ? e.currentTarget.getBoundingClientRect() : null;
 
-    setSubmitting(prev => ({ ...prev, [photoUrl]: true }));
+    setSubmitting(prev => ({ ...prev, [postId]: true }));
     try {
-      const res = await fetch('/api/comment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photoUrl, name, text }) });
+      const res = await fetch('/api/comment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photoUrl: postId, name, text }) });
       const data = await res.json();
       if (data.success) {
         if (rect) fireSparkles(rect);
         setFeedPosts(prev => prev.map(p => {
-          if (p.url !== photoUrl) return p;
+          if ((p.url || p.timestamp) !== postId) return p;
           return { ...p, commentCount: p.commentCount + 1, comments: [...(p.comments || []), data.comment] };
         }));
-        updateForm(photoUrl, 'text', '');
+        updateForm(postId, 'text', '');
       }
     } catch { }
-    finally { setSubmitting(prev => ({ ...prev, [photoUrl]: false })); }
+    finally { setSubmitting(prev => ({ ...prev, [postId]: false })); }
   };
 
 
@@ -443,6 +443,76 @@ export default function Home() {
               <div style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>İlk fotoğrafı veya mesajı sen bırak!</div>
             </div>
           ) : displayPosts.map((post, i) => {
+            const postId = post.url || post.timestamp;
+            
+            const PostActionsAndComments = () => (
+              <>
+                {/* Actions */}
+                <div className="feed-actions">
+                  <button
+                    className={`feed-like-btn${post.isLiked ? ' liked' : ''}`}
+                    onClick={(e) => handleLike(postId, e)}
+                  >
+                    <span className="heart-icon">{post.isLiked ? '♥' : '♡'}</span>
+                    <span>{post.likeCount > 0 ? post.likeCount : ''}</span>
+                    <span style={{ fontSize: '0.82rem' }}>{post.isLiked ? 'Beğenildi' : 'Beğen'}</span>
+                  </button>
+                  <button className="feed-comment-btn" onClick={() => toggleComments(postId)}>
+                    <span>{post.commentCount > 0 ? post.commentCount : ''}</span>
+                    <span style={{ fontSize: '0.82rem' }}>Yorum</span>
+                  </button>
+                </div>
+
+                {/* Comments */}
+                {openComments[postId] && (
+                  <div className="feed-comments">
+                    {(post.comments || []).length > 0 ? (
+                      <div className="feed-comments-list">
+                        {(post.comments || []).map((c, j) => (
+                          <div key={j} className="feed-comment-item">
+                            <div className="feed-comment-avatar">{(c.name || 'M').charAt(0)}</div>
+                            <div style={{ flex: 1 }}>
+                              <span className="feed-comment-name">{c.name}</span>
+                              <span className="feed-comment-text"> {c.text}</span>
+                              <div className="feed-comment-time">{timeAgo(c.timestamp)}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '0.5rem 0', color: '#bbb', fontSize: '0.85rem' }}>Henüz yorum yok. İlk yorumu sen yap!</div>
+                    )}
+                    {/* Comment Form */}
+                    <div className="feed-comment-form">
+                      <input
+                        className={`feed-comment-name-input${commentErrors[postId] && !commentForms[postId]?.name?.trim() ? ' input-error' : ''}`}
+                        placeholder="Adınız (zorunlu)"
+                        value={commentForms[postId]?.name || ''}
+                        onChange={e => { updateForm(postId, 'name', e.target.value); setCommentErrors(prev => ({ ...prev, [postId]: '' })); }}
+                        maxLength={40}
+                        style={{ fontSize: '16px' }}
+                      />
+                      {commentErrors[postId] && <div className="feed-comment-error">{commentErrors[postId]}</div>}
+                      <div className="feed-comment-row">
+                        <input
+                          className="feed-comment-text-input"
+                          placeholder="Yorum yazın..."
+                          value={commentForms[postId]?.text || ''}
+                          onChange={e => updateForm(postId, 'text', e.target.value)}
+                          maxLength={200}
+                          onKeyDown={e => e.key === 'Enter' && submitComment(postId, e)}
+                          style={{ fontSize: '16px' }}
+                        />
+                        <button className="feed-comment-send" onClick={(e) => submitComment(postId, e)} disabled={submitting[postId] || !(commentForms[postId]?.text?.trim())}>
+                          {submitting[postId] ? '...' : '→'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+
             // ─── GUESTBOOK CARD ───
             if (post.type === 'guestbook') {
               return (
@@ -457,6 +527,7 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="guestbook-message">"{post.message}"</div>
+                  <PostActionsAndComments />
                 </div>
               );
             }
@@ -480,70 +551,7 @@ export default function Home() {
                 <div className="feed-photo-wrap">
                   <img src={post.url} alt={post.name} className="feed-photo" loading="lazy" />
                 </div>
-
-                {/* Actions */}
-                <div className="feed-actions">
-                  <button
-                    className={`feed-like-btn${post.isLiked ? ' liked' : ''}`}
-                    onClick={(e) => handleLike(post.url, e)}
-                  >
-                    <span className="heart-icon">{post.isLiked ? '♥' : '♡'}</span>
-                    <span>{post.likeCount > 0 ? post.likeCount : ''}</span>
-                    <span style={{ fontSize: '0.82rem' }}>{post.isLiked ? 'Beğenildi' : 'Beğen'}</span>
-                  </button>
-                  <button className="feed-comment-btn" onClick={() => toggleComments(post.url)}>
-                    <span>{post.commentCount > 0 ? post.commentCount : ''}</span>
-                    <span style={{ fontSize: '0.82rem' }}>Yorum</span>
-                  </button>
-                </div>
-
-                {/* Comments */}
-                {openComments[post.url] && (
-                  <div className="feed-comments">
-                    {(post.comments || []).length > 0 ? (
-                      <div className="feed-comments-list">
-                        {(post.comments || []).map((c, j) => (
-                          <div key={j} className="feed-comment-item">
-                            <div className="feed-comment-avatar">{(c.name || 'M').charAt(0)}</div>
-                            <div style={{ flex: 1 }}>
-                              <span className="feed-comment-name">{c.name}</span>
-                              <span className="feed-comment-text"> {c.text}</span>
-                              <div className="feed-comment-time">{timeAgo(c.timestamp)}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{ padding: '0.5rem 0', color: '#bbb', fontSize: '0.85rem' }}>Henüz yorum yok. İlk yorumu sen yap!</div>
-                    )}
-                    {/* Comment Form */}
-                    <div className="feed-comment-form">
-                      <input
-                        className={`feed-comment-name-input${commentErrors[post.url] && !commentForms[post.url]?.name?.trim() ? ' input-error' : ''}`}
-                        placeholder="Adınız (zorunlu)"
-                        value={commentForms[post.url]?.name || ''}
-                        onChange={e => { updateForm(post.url, 'name', e.target.value); setCommentErrors(prev => ({ ...prev, [post.url]: '' })); }}
-                        maxLength={40}
-                        style={{ fontSize: '16px' }}
-                      />
-                      {commentErrors[post.url] && <div className="feed-comment-error">{commentErrors[post.url]}</div>}
-                      <div className="feed-comment-row">
-                        <input
-                          className="feed-comment-text-input"
-                          placeholder="Yorum yazın..."
-                          value={commentForms[post.url]?.text || ''}
-                          onChange={e => updateForm(post.url, 'text', e.target.value)}
-                          maxLength={200}
-                          onKeyDown={e => e.key === 'Enter' && submitComment(post.url, e)}
-                          style={{ fontSize: '16px' }}
-                        />
-                        <button className="feed-comment-send" onClick={(e) => submitComment(post.url, e)} disabled={submitting[post.url] || !(commentForms[post.url]?.text?.trim())}>
-                          {submitting[post.url] ? '...' : '→'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <PostActionsAndComments />
               </div>
             );
           })}
