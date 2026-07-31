@@ -82,7 +82,8 @@ export default function Home() {
       setFeedPosts(prev => {
         if (!prev.length) return serverPosts;
         return serverPosts.map(serverPost => {
-          const localPost = prev.find(p => p.url === serverPost.url);
+          const serverId = serverPost.url || serverPost.timestamp;
+          const localPost = prev.find(p => (p.url || p.timestamp) === serverId);
           if (!localPost) return serverPost;
 
           // Preserve local like state if server hasn't updated yet (due to Vercel blob write lag)
