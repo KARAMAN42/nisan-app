@@ -6,18 +6,32 @@ import Head from "next/head";
 const norm = (p) =>
   typeof p === "string" ? { url: p, name: "Misafir", message: "", timestamp: 0 } : p;
 
-// Group photos by guest name, sorted by most recent upload
-function groupByGuest(photos) {
+// Group items by guest name, sorted by most recent upload
+function groupByGuest(photos, guestbooks = []) {
   const map = {};
-  for (const p of photos) {
-    const key = p.name || "Misafir";
-    if (!map[key]) map[key] = { name: key, message: p.message || "", photos: [], latest: 0 };
-    map[key].photos.push(p);
-    if (p.timestamp > map[key].latest) {
-      map[key].latest = p.timestamp;
-      if (p.message) map[key].message = p.message; // use most recent message
+  
+  const processItem = (item, isGuestbook) => {
+    const key = item.name || "Misafir";
+    if (!map[key]) map[key] = { name: key, uploadMessage: "", photos: [], guestbooks: [], latest: 0 };
+    
+    if (isGuestbook) {
+      map[key].guestbooks.push(item);
+    } else {
+      map[key].photos.push(item);
+      // Use the most recent photo upload message if present
+      if (item.message && item.timestamp >= map[key].latest) {
+        map[key].uploadMessage = item.message;
+      }
     }
-  }
+    
+    if (item.timestamp > map[key].latest) {
+      map[key].latest = item.timestamp;
+    }
+  };
+  
+  photos.forEach(p => processItem(p, false));
+  guestbooks.forEach(g => processItem(g, true));
+  
   return Object.values(map).sort((a, b) => b.latest - a.latest);
 }
 
@@ -109,7 +123,7 @@ export default function AdminPage() {
 
   const totalCommentCount = Object.values(allComments).reduce((s, arr) => s + arr.length, 0);
 
-  const groups = groupByGuest(photos);
+  const groups = groupByGuest(photos, guestbooks);
 
   // Map each photo to its flat index (for lightbox navigation)
   const flatPhotos = groups.flatMap(g => g.photos);
@@ -452,40 +466,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* ─── GUESTBOOK MESSAGES ─── */}
-      {guestbooks.length > 0 && (
-        <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 0 0.8rem' }}>
-          <div style={{
-            background: 'white',
-            borderRadius: 16,
-            overflow: 'hidden',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
-            padding: '1rem 1.2rem',
-          }}>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.8rem' }}>
-              <span style={{ fontSize: '1.1rem' }}>📝</span> Özel Defter Mesajları ({guestbooks.length})
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-              {guestbooks.sort((a,b)=>b.timestamp-a.timestamp).map((gb, idx) => (
-                <div key={idx} style={{ background: '#f8f8fa', padding: '1rem', borderRadius: 12, position: 'relative' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1a1a1a', marginBottom: 4 }}>{gb.name || 'Misafir'}</div>
-                  <div style={{ fontSize: '0.88rem', color: '#333', lineHeight: 1.5 }}>{gb.message}</div>
-                  <div style={{ fontSize: '0.7rem', color: '#999', marginTop: 8 }}>
-                    {new Date(gb.timestamp).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                  <button 
-                    onClick={() => deleteGuestbook(gb.timestamp)}
-                    style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(255,59,48,0.1)', border: 'none', color: '#ff3b30', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: '4px 10px', borderRadius: 6 }}
-                  >
-                    Sil
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Removed separate GUESTBOOK MESSAGES section as they are now grouped by user */}
 
       {/* ─── GROUPED CONTENT ─── */}
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "0.8rem 0 5rem" }}>
@@ -519,7 +500,9 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "1rem", lineHeight: 1.2, transition: "color 0.2s ease" }}>{group.name}</div>
-                    <div style={{ fontSize: "0.73rem", color: "#bbb", marginTop: 1 }}>{group.photos.length} fotoğraf yükledi</div>
+                    <div style={{ fontSize: "0.73rem", color: "#bbb", marginTop: 1 }}>
+                      {group.photos.length > 0 && group.guestbooks.length > 0 ? `${group.photos.length} fotoğraf · ${group.guestbooks.length} mesaj` : group.photos.length > 0 ? `${group.photos.length} fotoğraf yükledi` : `${group.guestbooks.length} mesaj bıraktı`}
+                    </div>
                   </div>
                 </div>
                 {/* Save / Share */}
@@ -549,7 +532,7 @@ export default function AdminPage() {
               </div>
 
               {/* Row 2: Message bubble - shown directly under name */}
-              {group.message && (
+              {group.uploadMessage && (
                 <div style={{
                   marginTop: "0.6rem",
                   marginLeft: "50px",
@@ -564,10 +547,30 @@ export default function AdminPage() {
                   animation: "fadeUp 0.4s ease both 0.15s"
                 }}>
                   <span style={{ position: "absolute", left: -8, top: 8, fontSize: 10, color: "#f5f5f7" }}>◄</span>
-                  {group.message}
+                  {group.uploadMessage}
                 </div>
               )}
             </div>
+
+            {/* Guestbook Entries */}
+            {group.guestbooks.length > 0 && (
+              <div style={{ padding: "0 1rem 0.8rem", display: "flex", flexDirection: "column", gap: 8, marginTop: group.uploadMessage ? 0 : "0.8rem" }}>
+                {group.guestbooks.map((gb, idx) => (
+                  <div key={idx} style={{ background: '#f8f8fa', padding: '0.8rem', borderRadius: 10, position: 'relative', border: '1px solid #f0f0f0' }}>
+                    <div style={{ fontSize: '0.88rem', color: '#2c2c2e', lineHeight: 1.4 }}>{gb.message}</div>
+                    <div style={{ fontSize: '0.68rem', color: '#999', marginTop: 6 }}>
+                      Anı Defteri · {new Date(gb.timestamp).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <button 
+                      onClick={() => deleteGuestbook(gb.timestamp)}
+                      style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255,59,48,0.1)', border: 'none', color: '#ff3b30', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '4px 8px', borderRadius: 6 }}
+                    >
+                      Sil
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Photos Grid */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, padding: 2 }}>
