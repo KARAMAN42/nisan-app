@@ -24,6 +24,8 @@ export default function Home() {
   const [successCount, setSuccessCount] = useState(0);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+  // ─── Background upload toast ───
+  const [bgUpload, setBgUpload] = useState(null); // null | { status:'uploading'|'done'|'error', count, msg }
 
   // ─── Feed state ───
   const [feedOpen, setFeedOpen] = useState(false);
@@ -287,26 +289,48 @@ export default function Home() {
     if (!guestName.trim()) { setError("Lütfen adınızı girin."); return; }
     if (!selectedFiles.length) { setError("Lütfen en az bir fotoğraf seçin."); return; }
     setUploading(true); setError(null);
+
+    // 1) Resimleri hazırla (bu kısım hızlı, cihazda yapılıyor)
+    let images = [];
     try {
-      const images = [];
       for (let i = 0; i < selectedFiles.length; i++) {
         setUploadProgress(`Hazırlanıyor ${i + 1}/${selectedFiles.length}...`);
         const dataUrl = await resizeImage(selectedFiles[i]);
         images.push({ dataUrl, filename: selectedFiles[i].name });
       }
-      setUploadProgress(`${selectedFiles.length} fotoğraf yükleniyor...`);
+    } catch (err) {
+      setError("Fotoğraf hazırlanamadı: " + err.message);
+      setUploading(false); setUploadProgress("");
+      return;
+    }
+
+    // 2) Sheet'i hemen kapat, kullanıcı ana ekrana dönsün
+    const count = images.length;
+    const nameForUpload = guestName.trim();
+    const msgForUpload = message.trim();
+    setSheetOpen(false);
+    setSelectedFiles([]);
+    setUploading(false);
+    setUploadProgress("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    // 3) Toast göster: yükleniyor
+    setBgUpload({ status: 'uploading', count, msg: `${count} fotoğraf yükleniyor...` });
+
+    // 4) Arka planda yükle
+    try {
       const res = await fetch("/api/upload", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images, guestName: guestName.trim(), message: message.trim() }),
+        body: JSON.stringify({ images, guestName: nameForUpload, message: msgForUpload }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || "Yükleme başarısız.");
-      setSuccess(true); setSuccessCount(data.count || selectedFiles.length);
-      setSheetOpen(false); setSelectedFiles([]);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      setTimeout(() => fetchFeed(visitorId), 2000);
-    } catch (err) { setError("Hata: " + err.message); }
-    finally { setUploading(false); setUploadProgress(""); }
+      setBgUpload({ status: 'done', count: data.count || count, msg: `${data.count || count} fotoğraf yüklendi ✓` });
+      setTimeout(() => { setBgUpload(null); fetchFeed(visitorId); }, 3000);
+    } catch (err) {
+      setBgUpload({ status: 'error', count, msg: "Yükleme hatası: " + err.message });
+      setTimeout(() => setBgUpload(null), 5000);
+    }
   };
 
   // ─── Derived data ───
@@ -334,6 +358,16 @@ export default function Home() {
 
   return (
     <>
+      {/* ─── BACKGROUND UPLOAD TOAST ─── */}
+      {bgUpload && (
+        <div className={`bg-upload-toast bg-upload-toast--${bgUpload.status}`}>
+          {bgUpload.status === 'uploading' && <span className="bg-upload-spinner" />}
+          {bgUpload.status === 'done' && <span style={{ fontSize: '1rem' }}>✓</span>}
+          {bgUpload.status === 'error' && <span style={{ fontSize: '1rem' }}>✕</span>}
+          <span>{bgUpload.msg}</span>
+        </div>
+      )}
+
       <Head><title>Yusuf & Şevval Nişan Töreni</title></Head>
 
       {/* ─── FLYING HEARTS OVERLAY ─── */}
@@ -589,7 +623,7 @@ export default function Home() {
         <input type="file" accept="image/*" multiple className="file-input" ref={fileInputRef} onChange={handleFileSelect} />
         {error && <p className="sheet-error">{error}</p>}
         <button className="sheet-upload-btn" onClick={handleUpload} disabled={uploading || !selectedFiles.length}>
-          {uploading ? (<><span className="loading-spinner" />{uploadProgress || "Yükleniyor..."}</>) : ("Yükle")}
+          {uploading ? (<><span className="loading-spinner" />{uploadProgress || "Hazırlanıyor..."}</>) : ("Yükle")}
         </button>
       </div>
 
