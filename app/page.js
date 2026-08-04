@@ -424,29 +424,29 @@ export default function Home() {
       {/* ─── FEED OVERLAY ─── */}
       <div className={`feed-overlay${feedOpen ? ' open' : ''}`}>
         <div className="feed-header">
-          <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>Nişan Anları</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: '0.78rem', color: '#999' }}>{feedPosts.length} paylaşım</span>
-            <button className="feed-close-btn" onClick={closeFeed}>✕</button>
+          <div>
+            <div className="feed-header-title">Nişan Anları 💌</div>
+            <div className="feed-header-sub">{feedPosts.length} mektup · Yusuf & Şevval</div>
           </div>
+          <button className="feed-close-btn" onClick={closeFeed}>✕</button>
         </div>
 
         <div className="feed-content" ref={feedScrollRef} style={{ overflowY: 'auto', touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
           {loadingFeed ? (
-            <div style={{ padding: '4rem', textAlign: 'center', color: '#aaa' }}>
+            <div className="feed-loading-state">
               <div className="feed-loading-spinner" />
-              <p style={{ marginTop: '1rem' }}>Yükleniyor...</p>
+              <div className="feed-loading-text">Mektuplar hazırlanıyor...</div>
             </div>
           ) : displayPosts.length === 0 ? (
-            <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#aaa' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '1rem', color: '#ccc' }}>[ ]</div>
-              <div style={{ fontWeight: 500 }}>Henüz paylaşım yok.</div>
-              <div style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>İlk fotoğrafı veya mesajı sen bırak!</div>
+            <div className="feed-empty-state">
+              <div className="feed-empty-icon">✉️</div>
+              <div className="feed-empty-text">Henüz mektup yok</div>
+              <div className="feed-empty-sub">İlk hatırayı sen bırak!</div>
             </div>
           ) : displayPosts.map((post, i) => {
             const postId = post.url || post.timestamp;
-            
-            const postActionsAndCommentsJSX = (
+
+            const commentsJSX = (
               <>
                 {/* Actions */}
                 <div className="feed-actions">
@@ -456,11 +456,12 @@ export default function Home() {
                   >
                     <span className="heart-icon">{post.isLiked ? '♥' : '♡'}</span>
                     <span>{post.likeCount > 0 ? post.likeCount : ''}</span>
-                    <span style={{ fontSize: '0.82rem' }}>{post.isLiked ? 'Beğenildi' : 'Beğen'}</span>
+                    <span style={{ fontSize: '0.9rem' }}>{post.isLiked ? 'Beğenildi' : 'Beğen'}</span>
                   </button>
                   <button className="feed-comment-btn" onClick={() => toggleComments(postId)}>
+                    <span>💬</span>
                     <span>{post.commentCount > 0 ? post.commentCount : ''}</span>
-                    <span style={{ fontSize: '0.82rem' }}>Yorum</span>
+                    <span style={{ fontSize: '0.9rem' }}>Yanıtla</span>
                   </button>
                 </div>
 
@@ -473,21 +474,20 @@ export default function Home() {
                           <div key={j} className="feed-comment-item">
                             <div className="feed-comment-avatar">{(c.name || 'M').charAt(0)}</div>
                             <div style={{ flex: 1 }}>
-                              <span className="feed-comment-name">{c.name}</span>
-                              <span className="feed-comment-text"> {c.text}</span>
+                              <span className="feed-comment-name">{c.name} </span>
+                              <span className="feed-comment-text">{c.text}</span>
                               <div className="feed-comment-time">{timeAgo(c.timestamp)}</div>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div style={{ padding: '0.5rem 0', color: '#bbb', fontSize: '0.85rem' }}>Henüz yorum yok. İlk yorumu sen yap!</div>
+                      <div style={{ padding: '0.4rem 0', color: '#c4a882', fontSize: '0.9rem', fontFamily: 'var(--font-caveat), cursive' }}>Henüz yanıt yok... ilk sen yaz ✍️</div>
                     )}
-                    {/* Comment Form */}
                     <div className="feed-comment-form">
                       <input
                         className={`feed-comment-name-input${commentErrors[postId] && !commentForms[postId]?.name?.trim() ? ' input-error' : ''}`}
-                        placeholder="Adınız (zorunlu)"
+                        placeholder="Adınız..."
                         value={commentForms[postId]?.name || ''}
                         onChange={e => { updateForm(postId, 'name', e.target.value); setCommentErrors(prev => ({ ...prev, [postId]: '' })); }}
                         maxLength={40}
@@ -497,7 +497,7 @@ export default function Home() {
                       <div className="feed-comment-row">
                         <input
                           className="feed-comment-text-input"
-                          placeholder="Yorum yazın..."
+                          placeholder="Yanıtınızı yazın..."
                           value={commentForms[postId]?.text || ''}
                           onChange={e => updateForm(postId, 'text', e.target.value)}
                           maxLength={200}
@@ -505,7 +505,7 @@ export default function Home() {
                           style={{ fontSize: '16px' }}
                         />
                         <button className="feed-comment-send" onClick={(e) => submitComment(postId, e)} disabled={submitting[postId] || !(commentForms[postId]?.text?.trim())}>
-                          {submitting[postId] ? '...' : '→'}
+                          {submitting[postId] ? '…' : '→'}
                         </button>
                       </div>
                     </div>
@@ -514,49 +514,82 @@ export default function Home() {
               </>
             );
 
-            // ─── GUESTBOOK CARD ───
+            // ─── GUESTBOOK LETTER ───
             if (post.type === 'guestbook') {
               return (
-                <div key={`gb-${i}`} className="feed-post guestbook-card" style={{ animation: `fadeUp 0.4s ease both ${i * 0.05}s` }}>
-                  <div className="feed-post-header">
-                    <div className="feed-avatar" style={{ background: '#6c63ff' }}>
-                      {(post.name || 'M').charAt(0).toUpperCase()}
+                <div key={`gb-${i}`} className="letter-card guestbook-card" style={{ animationDelay: `${i * 0.06}s` }}>
+                  {/* Envelope header */}
+                  <div className="letter-envelope" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div className="wax-seal wax-seal-letter">✉️</div>
+                    <div style={{ flex: 1 }}>
+                      <div className="letter-sender-name">{post.name}</div>
+                      <div className="letter-sender-time">Anı Defteri · {timeAgo(post.timestamp)}</div>
                     </div>
-                    <div>
-                      <div className="feed-post-name">{post.name}</div>
-                      <div className="feed-post-time">Anı Defteri · {timeAgo(post.timestamp)}</div>
+                    {/* Postage stamp */}
+                    <div style={{ width: 32, height: 40, background: 'linear-gradient(145deg, #d4a8c7, #c48fb8)', borderRadius: 2, border: '1.5px solid rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', boxShadow: '1px 2px 4px rgba(0,0,0,0.12)', flexShrink: 0 }}>
+                      💌
                     </div>
                   </div>
-                  <div className="guestbook-message">"{post.message}"</div>
-                  {postActionsAndCommentsJSX}
+                  {/* Paper body */}
+                  <div className="letter-body">
+                    <div className="guestbook-message">{post.message}</div>
+                    {commentsJSX}
+                  </div>
+                  {/* Footer */}
+                  <div style={{ height: 4, background: 'linear-gradient(90deg, #f5e6d0, #eedfc8)', borderRadius: '0 0 18px 18px', border: '1px solid rgba(180,140,100,0.3)', borderTop: 'none' }} />
                 </div>
               );
             }
 
-            // ─── PHOTO CARD ───
+            // ─── PHOTO LETTER ───
             return (
-              <div key={i} className="feed-post" style={{ animation: `fadeUp 0.4s ease both ${i * 0.05}s` }}>
+              <div key={i} className="letter-card" style={{ animationDelay: `${i * 0.06}s` }}>
                 {/* Most liked badge */}
                 {post.isMostLiked && (
-                  <div className="most-liked-badge">En Sevilen An</div>
+                  <div className="most-liked-badge">💖 En Çok Sevilen An</div>
                 )}
 
-                <div className="feed-post-header">
-                  <div className="feed-avatar">{(post.name || 'M').charAt(0).toUpperCase()}</div>
-                  <div>
-                    <div className="feed-post-name">{post.name}</div>
-                    <div className="feed-post-time">{timeAgo(post.timestamp)}</div>
+                {/* Envelope header */}
+                <div className="letter-envelope" style={{ display: 'flex', alignItems: 'center', gap: 10, borderRadius: post.isMostLiked ? '0' : '18px 18px 0 0' }}>
+                  <div className="wax-seal wax-seal-photo">📸</div>
+                  <div style={{ flex: 1 }}>
+                    <div className="letter-sender-name">{post.name}</div>
+                    <div className="letter-sender-time">{timeAgo(post.timestamp)}</div>
+                  </div>
+                  {/* Postage stamp */}
+                  <div style={{ width: 32, height: 40, background: 'linear-gradient(145deg, #f4a56a, #e8874a)', borderRadius: 2, border: '1.5px solid rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', boxShadow: '1px 2px 4px rgba(0,0,0,0.12)', flexShrink: 0 }}>
+                    🌸
                   </div>
                 </div>
-                {post.message && <div className="feed-post-message">"{post.message}"</div>}
-                <div className="feed-photo-wrap">
-                  <img src={post.url} alt={post.name} className="feed-photo" loading="lazy" />
+
+                {/* Paper body */}
+                <div className="letter-body">
+                  {/* Handwritten message */}
+                  {post.message && (
+                    <div className="letter-message">
+                      <span style={{ color: '#c4a882', marginRight: '4px', fontFamily: 'var(--font-dancing), cursive', fontSize: '1.3rem' }}>"</span>
+                      {post.message}
+                      <span style={{ color: '#c4a882', marginLeft: '4px', fontFamily: 'var(--font-dancing), cursive', fontSize: '1.3rem' }}>"</span>
+                    </div>
+                  )}
+
+                  {/* Polaroid photo */}
+                  <div className="polaroid-wrap">
+                    <div className="polaroid-frame">
+                      <img src={post.url} alt={post.name} loading="lazy" />
+                      <div className="polaroid-caption">{post.name} · {timeAgo(post.timestamp)}</div>
+                    </div>
+                  </div>
+
+                  {commentsJSX}
                 </div>
-                {postActionsAndCommentsJSX}
+
+                {/* Footer */}
+                <div style={{ height: 4, background: 'linear-gradient(90deg, #f5e6d0, #eedfc8)', borderRadius: '0 0 18px 18px', border: '1px solid rgba(180,140,100,0.3)', borderTop: 'none' }} />
               </div>
             );
           })}
-          <div style={{ height: '3rem' }} />
+          <div style={{ height: '4rem' }} />
         </div>
       </div>
 
