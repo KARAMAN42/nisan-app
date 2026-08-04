@@ -282,14 +282,14 @@ export default function Home() {
         img.onload = () => {
           const canvas = document.createElement("canvas");
           let { width, height } = img;
-          const maxSize = 1600;
+          const maxSize = 1200; // Optimal size for fast mobile upload & high quality
           if (width > maxSize || height > maxSize) {
             if (width > height) { height = Math.round(height * maxSize / width); width = maxSize; }
             else { width = Math.round(width * maxSize / height); height = maxSize; }
           }
           canvas.width = width; canvas.height = height;
           canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.85));
+          resolve(canvas.toDataURL("image/jpeg", 0.80));
         };
         img.src = e.target.result;
       };
@@ -305,7 +305,7 @@ export default function Home() {
     if (!selectedFiles.length) { setError("Lütfen en az bir fotoğraf seçin."); return; }
     setUploading(true); setError(null);
 
-    // 1) Resimleri hazırla (bu kısım hızlı, cihazda yapılıyor)
+    // 1) Resimleri sıkıştırıp hazırla
     let images = [];
     try {
       for (let i = 0; i < selectedFiles.length; i++) {
@@ -319,31 +319,54 @@ export default function Home() {
       return;
     }
 
-    // 2) Sheet'i hemen kapat, kullanıcı ana ekrana dönsün
-    const count = images.length;
+    // 2) Bottom sheet'i kapat, kullanıcı ana ekrana dönsün
+    const totalCount = images.length;
     const nameForUpload = guestName.trim();
     const msgForUpload = message.trim();
+    const uploadSessionId = `session_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+    const uploadSessionTimestamp = Date.now();
+
     setSheetOpen(false);
     setSelectedFiles([]);
     setUploading(false);
     setUploadProgress("");
     if (fileInputRef.current) fileInputRef.current.value = "";
 
-    // 3) Toast göster: yükleniyor
-    setBgUpload({ status: 'uploading', count, msg: `${count} fotoğraf yükleniyor...` });
+    // 3) Arka planda parça parça (chunked 2'şer 2'şer) yükle — payload limitlerini asla aşmaz
+    setBgUpload({ status: 'uploading', count: totalCount, msg: `0/${totalCount} fotoğraf yükleniyor...` });
 
-    // 4) Arka planda yükle
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images, guestName: nameForUpload, message: msgForUpload }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || "Yükleme başarısız.");
-      setBgUpload({ status: 'done', count: data.count || count, msg: `${data.count || count} fotoğraf yüklendi ✓` });
+      const chunkSize = 2; // Maximum 2 images per request (~400KB total)
+      let uploadedSoFar = 0;
+
+      for (let i = 0; i < images.length; i += chunkSize) {
+        const chunk = images.slice(i, i + chunkSize);
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            images: chunk,
+            guestName: nameForUpload,
+            message: msgForUpload,
+            sessionId: uploadSessionId,
+            sessionTimestamp: uploadSessionTimestamp,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || "Yükleme başarısız.");
+
+        uploadedSoFar += chunk.length;
+        setBgUpload({
+          status: 'uploading',
+          count: totalCount,
+          msg: `${uploadedSoFar}/${totalCount} fotoğraf yüklendi...`
+        });
+      }
+
+      setBgUpload({ status: 'done', count: totalCount, msg: `${totalCount} fotoğraf başarıyla yüklendi ✓` });
       setTimeout(() => { setBgUpload(null); fetchFeed(visitorId); }, 3000);
     } catch (err) {
-      setBgUpload({ status: 'error', count, msg: "Yükleme hatası: " + err.message });
+      setBgUpload({ status: 'error', count: totalCount, msg: "Yükleme hatası: " + err.message });
       setTimeout(() => setBgUpload(null), 5000);
     }
   };

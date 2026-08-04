@@ -16,9 +16,10 @@ export async function POST(request) {
     const name = (guestName || 'Misafir').trim().substring(0, 60);
     const msg = (message || '').trim().substring(0, 200);
     const uploadedPhotos = [];
-    // All photos in this upload share the same sessionId and base timestamp
-    const sessionId = `session_${Date.now()}_${Math.floor(Math.random()*10000)}`;
-    const sessionTimestamp = Date.now();
+    
+    // Support client-provided sessionId / sessionTimestamp for batched uploads
+    const sessionId = body.sessionId || `session_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+    const sessionTimestamp = body.sessionTimestamp || Date.now();
 
     // Upload each image
     for (let idx = 0; idx < images.length; idx++) {
