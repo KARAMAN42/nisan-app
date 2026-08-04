@@ -371,16 +371,49 @@ export default function Home() {
     }
   };
 
-  // ─── Lightbox swipe gesture ───
+  // ─── Lightbox swipe & pinch-to-zoom gesture ───
+  const [pinchScale, setPinchScale] = useState(1);
+  const pinchStartDist = useRef(0);
+  const isPinching = useRef(false);
   const lightboxTouch = useRef({ startX: 0, startY: 0 });
 
   const onLightboxTouchStart = (e) => {
-    lightboxTouch.current.startX = e.touches[0].clientX;
-    lightboxTouch.current.startY = e.touches[0].clientY;
+    if (e.touches.length === 2) {
+      isPinching.current = true;
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      pinchStartDist.current = dist;
+    } else if (e.touches.length === 1) {
+      isPinching.current = false;
+      lightboxTouch.current.startX = e.touches[0].clientX;
+      lightboxTouch.current.startY = e.touches[0].clientY;
+    }
+  };
+
+  const onLightboxTouchMove = (e) => {
+    if (e.touches.length === 2 && isPinching.current && pinchStartDist.current > 0) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const scale = Math.min(Math.max(1, dist / pinchStartDist.current), 3.5);
+      setPinchScale(scale);
+    }
   };
 
   const onLightboxTouchEnd = (e) => {
+    if (pinchScale > 1 || isPinching.current) {
+      setPinchScale(1);
+      isPinching.current = false;
+      pinchStartDist.current = 0;
+      return;
+    }
+
     if (!lightbox || !lightbox.urls || lightbox.urls.length <= 1) return;
+    if (!e.changedTouches || !e.changedTouches.length) return;
+
     const endX = e.changedTouches[0].clientX;
     const endY = e.changedTouches[0].clientY;
     const dx = endX - lightboxTouch.current.startX;
@@ -796,20 +829,27 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ─── LIGHTBOX (Swipeable full-screen viewer) ─── */}
+      {/* ─── LIGHTBOX (Swipeable & Pinch-to-zoom full-screen viewer) ─── */}
       {lightbox && (
         <div
           className="lightbox-overlay"
-          onClick={() => setLightbox(null)}
+          onClick={() => { setPinchScale(1); setLightbox(null); }}
           onTouchStart={onLightboxTouchStart}
+          onTouchMove={onLightboxTouchMove}
           onTouchEnd={onLightboxTouchEnd}
+          onTouchCancel={() => setPinchScale(1)}
         >
-          <button className="lightbox-close" onClick={() => setLightbox(null)}>✕</button>
+          <button className="lightbox-close" onClick={() => { setPinchScale(1); setLightbox(null); }}>✕</button>
           <div className="lightbox-img-wrap" onClick={e => e.stopPropagation()}>
             <img
               src={lightbox.urls[lightbox.idx]}
               alt=""
               className="lightbox-img"
+              style={{
+                transform: `scale(${pinchScale})`,
+                transition: pinchScale === 1 ? 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+                touchAction: 'none'
+              }}
             />
           </div>
         </div>
