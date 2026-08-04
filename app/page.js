@@ -663,7 +663,8 @@ export default function Home() {
                                 style={{
                                   '--rot': `${stackAngles[pi % stackAngles.length]}deg`,
                                   '--z': photos.length - pi,
-                                  '--offset': `${pi * 5}px`
+                                  '--offset': `${pi * 6}px`,
+                                  '--delay': `${(pi * 0.8).toFixed(1)}s`
                                 }}
                               >
                                 <img src={ph.url} alt={ph.name} loading="lazy" />
