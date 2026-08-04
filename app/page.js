@@ -651,9 +651,12 @@ export default function Home() {
                     {post.message && <div className="letter-message">{post.message}</div>}
 
                     {photos.length === 1 ? (
-                      /* Single photo */
+                      /* Single photo - tilted & animated */
                       <div className="polaroid-wrap" onClick={() => setLightbox({ urls: [photos[0].url], idx: 0 })}>
-                        <div className="polaroid-frame polaroid-frame--clickable">
+                        <div
+                          className="polaroid-frame polaroid-frame--clickable polaroid-frame--animated"
+                          style={{ '--rot': `${(i % 2 === 0 ? -3.5 : 3.5)}deg` }}
+                        >
                           <img src={photos[0].url} alt={post.name} />
                           <div className="polaroid-caption">{post.name}</div>
                         </div>
@@ -662,7 +665,7 @@ export default function Home() {
                       /* Multi photo - STACKED or FANNED */
                       <div className={`polaroid-stack${isExpanded ? ' expanded' : ''}`}>
                         {!isExpanded ? (
-                          // Stacked pile - show overlapping tilted cards
+                          // Stacked pile - show overlapping tilted cards (larger size, no hint badge)
                           <div
                             className="polaroid-pile"
                             onClick={() => expandStack(sid)}
@@ -674,16 +677,13 @@ export default function Home() {
                                 style={{
                                   '--rot': `${stackAngles[pi % stackAngles.length]}deg`,
                                   '--z': photos.length - pi,
-                                  '--offset': `${pi * 6}px`,
+                                  '--offset': `${pi * 8}px`,
                                   '--delay': `${(pi * 0.8).toFixed(1)}s`
                                 }}
                               >
                                 <img src={ph.url} alt={ph.name} />
                               </div>
                             ))}
-                            <div className="polaroid-pile-hint">
-                              <span>📸 {photos.length} fotoğraf — görmek için dokun</span>
-                            </div>
                           </div>
                         ) : (
                           // Expanded grid / fan of photos
@@ -726,8 +726,11 @@ export default function Home() {
                   )}
 
                   <div className="polaroid-wrap" onClick={() => setLightbox({ urls: [post.url], idx: 0 })}>
-                    <div className="polaroid-frame polaroid-frame--clickable">
-                      <img src={post.url} alt={post.name} loading="lazy" />
+                    <div
+                      className="polaroid-frame polaroid-frame--clickable polaroid-frame--animated"
+                      style={{ '--rot': `${(i % 2 === 0 ? -3.5 : 3.5)}deg` }}
+                    >
+                      <img src={post.url} alt={post.name} />
                       <div className="polaroid-caption">{post.name}</div>
                     </div>
                   </div>
