@@ -1082,11 +1082,35 @@ input, textarea, select { font-size: 16px; }
 }
 
 /* ─── EXPANDED FAN / GRID ─── */
+.polaroid-fan-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+  margin-bottom: 0.3rem;
+}
+
+.polaroid-collapse-btn {
+  background: transparent;
+  border: 1px solid rgba(100, 65, 20, 0.25);
+  border-radius: 3px;
+  padding: 0.15rem 0.5rem;
+  font-family: var(--font-caveat), cursive;
+  font-size: 0.85rem;
+  color: #7a5520;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.polaroid-collapse-btn:hover {
+  background: rgba(100, 65, 20, 0.08);
+}
+
 .polaroid-fan {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 10px;
-  padding: 0.5rem 0;
+  padding: 0.3rem 0 0.5rem;
   animation: fanOpen 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 

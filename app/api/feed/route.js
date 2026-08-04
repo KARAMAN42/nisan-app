@@ -24,7 +24,7 @@ export async function GET(request) {
     }
 
     
-    // Map to include user-specific isLiked flag
+    // Map to include user-specific isLiked flag and session grouping fields
     const mappedPosts = posts.map(p => {
       const pl = p.likes || [];
       const pc = p.comments || [];
@@ -34,6 +34,8 @@ export async function GET(request) {
         name: p.name || 'Misafir',
         message: p.message || '',
         timestamp: p.timestamp || 0,
+        sessionId: p.sessionId || null,
+        sessionTimestamp: p.sessionTimestamp || p.timestamp || 0,
         likeCount: pl.length,
         isLiked: vid ? pl.includes(vid) : false,
         commentCount: pc.length,

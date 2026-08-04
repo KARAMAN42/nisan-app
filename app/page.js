@@ -349,39 +349,55 @@ export default function Home() {
   }
   const loopPhotos = basePhotos.length > 0 ? [...basePhotos, ...basePhotos] : [];
 
-  // Group photo posts by sessionId; solo posts (no sessionId or single) stay as-is
+  // Group photo posts smartly by sessionId OR (same name + same message + close timestamp within 30 minutes)
   const groupedFeedPosts = (() => {
-    const result = [];
-    const sessionMap = {}; // sessionId -> index in result
+    const groups = [];
     for (const post of feedPosts) {
-      if (post.type === 'photo' && post.sessionId) {
-        if (sessionMap[post.sessionId] !== undefined) {
-          // Add to existing group
-          result[sessionMap[post.sessionId]].photos.push(post);
-        } else {
-          // New group
-          sessionMap[post.sessionId] = result.length;
-          result.push({
-            type: 'photoGroup',
-            sessionId: post.sessionId,
-            name: post.name,
-            message: post.message,
-            timestamp: post.timestamp,
-            sessionTimestamp: post.sessionTimestamp || post.timestamp,
-            photos: [post],
-            // aggregate likes/comments from representative (first) photo
-            likeCount: post.likeCount,
-            isLiked: post.isLiked,
-            commentCount: post.commentCount,
-            comments: post.comments,
-            url: post.url, // for like/comment postId
-          });
+      if (post.type !== 'photo') {
+        groups.push(post);
+        continue;
+      }
+
+      let existingGroup = null;
+
+      if (post.sessionId) {
+        existingGroup = groups.find(g => g.type === 'photoGroup' && g.sessionId === post.sessionId);
+      }
+      
+      if (!existingGroup) {
+        // Fallback: group by same name, same message, and close timestamp (within 30 mins / 1800000ms)
+        existingGroup = groups.find(g =>
+          g.type === 'photoGroup' &&
+          g.name === post.name &&
+          (g.message || '').trim() === (post.message || '').trim() &&
+          Math.abs(g.sessionTimestamp - post.timestamp) < 1800000
+        );
+      }
+
+      if (existingGroup) {
+        if (!existingGroup.photos.some(p => p.url === post.url)) {
+          existingGroup.photos.push(post);
         }
       } else {
-        result.push(post);
+        const groupId = post.sessionId || `grp_${post.name}_${post.timestamp}`;
+        groups.push({
+          type: 'photoGroup',
+          groupId: groupId,
+          sessionId: post.sessionId || groupId,
+          name: post.name,
+          message: post.message,
+          timestamp: post.timestamp,
+          sessionTimestamp: post.sessionTimestamp || post.timestamp,
+          photos: [post],
+          likeCount: post.likeCount || 0,
+          isLiked: post.isLiked || false,
+          commentCount: post.commentCount || 0,
+          comments: post.comments || [],
+          url: post.url,
+        });
       }
     }
-    return result;
+    return groups;
   })();
 
   // Most liked (from all photo posts)
@@ -603,10 +619,11 @@ export default function Home() {
 
             // ─── PHOTO GROUP – stacked polaroids ───
             if (post.type === 'photoGroup') {
-              const sid = post.sessionId;
+              const sid = post.groupId || post.sessionId || `grp_${i}`;
               const isExpanded = !!expandedStacks[sid];
-              const photos = post.photos;
-              const stackAngles = [-6, 4, -2, 5, -3, 2]; // rotation per card
+              const photos = post.photos || [];
+              const stackAngles = [-7, 5, -3, 8, -5, 4]; // rotation per card in stack
+
               return (
                 <div key={`sg-${i}`} className="letter-card" style={{ animationDelay: `${i * 0.07}s` }}>
                   <div className="letter-paper">
@@ -615,47 +632,74 @@ export default function Home() {
                       <span className="letter-from-label">Gönderen: </span>
                       <span className="letter-sender-name">{post.name}</span>
                     </div>
-                    <div className="letter-date-line">{timeAgo(post.timestamp)} · {photos.length} fotoğraf</div>
+                    <div className="letter-date-line">
+                      {timeAgo(post.timestamp)} {photos.length > 1 ? `· ${photos.length} fotoğraf` : ''}
+                    </div>
                     <div className="letter-rule letter-rule-thin" />
 
                     {post.message && <div className="letter-message">{post.message}</div>}
 
-                    {/* STACKED or FANNED polaroids */}
-                    <div
-                      className={`polaroid-stack${isExpanded ? ' expanded' : ''}`}
-                      onClick={() => !isExpanded && setExpandedStacks(prev => ({ ...prev, [sid]: true }))}
-                    >
-                      {!isExpanded ? (
-                        // Stacked pile - show up to 3 overlapping
-                        <div className="polaroid-pile">
-                          {photos.slice(0, Math.min(3, photos.length)).map((ph, pi) => (
-                            <div
-                              key={pi}
-                              className="polaroid-pile-item"
-                              style={{ '--rot': `${stackAngles[pi] || 0}deg`, '--z': photos.length - pi, '--offset': `${pi * 4}px` }}
-                            >
-                              <img src={ph.url} alt={ph.name} loading="lazy" />
+                    {photos.length === 1 ? (
+                      /* Single photo */
+                      <div className="polaroid-wrap" onClick={() => setLightbox({ urls: [photos[0].url], idx: 0 })}>
+                        <div className="polaroid-frame polaroid-frame--clickable">
+                          <img src={photos[0].url} alt={post.name} loading="lazy" />
+                          <div className="polaroid-caption">{post.name}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Multi photo - STACKED or FANNED */
+                      <div className={`polaroid-stack${isExpanded ? ' expanded' : ''}`}>
+                        {!isExpanded ? (
+                          // Stacked pile - show overlapping tilted cards
+                          <div
+                            className="polaroid-pile"
+                            onClick={() => setExpandedStacks(prev => ({ ...prev, [sid]: true }))}
+                          >
+                            {photos.slice(0, Math.min(4, photos.length)).map((ph, pi) => (
+                              <div
+                                key={pi}
+                                className="polaroid-pile-item"
+                                style={{
+                                  '--rot': `${stackAngles[pi % stackAngles.length]}deg`,
+                                  '--z': photos.length - pi,
+                                  '--offset': `${pi * 5}px`
+                                }}
+                              >
+                                <img src={ph.url} alt={ph.name} loading="lazy" />
+                              </div>
+                            ))}
+                            <div className="polaroid-pile-hint">
+                              <span>📸 {photos.length} fotoğraf — görmek için dokun</span>
                             </div>
-                          ))}
-                          <div className="polaroid-pile-hint">
-                            <span>📸 {photos.length} fotoğraf — açmak için dokun</span>
                           </div>
-                        </div>
-                      ) : (
-                        // Fanned / expanded grid
-                        <div className="polaroid-fan">
-                          {photos.map((ph, pi) => (
-                            <div
-                              key={pi}
-                              className="polaroid-fan-item"
-                              onClick={(e) => { e.stopPropagation(); setLightbox({ urls: photos.map(p => p.url), idx: pi }); }}
-                            >
-                              <img src={ph.url} alt={ph.name} loading="lazy" />
+                        ) : (
+                          // Expanded grid / fan of photos
+                          <div>
+                            <div className="polaroid-fan-header">
+                              <span style={{ fontSize: '0.8rem', color: '#9a7040', fontStyle: 'italic' }}>{photos.length} fotoğraf:</span>
+                              <button
+                                className="polaroid-collapse-btn"
+                                onClick={() => setExpandedStacks(prev => ({ ...prev, [sid]: false }))}
+                              >
+                                Daralt ▴
+                              </button>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                            <div className="polaroid-fan">
+                              {photos.map((ph, pi) => (
+                                <div
+                                  key={pi}
+                                  className="polaroid-fan-item"
+                                  onClick={() => setLightbox({ urls: photos.map(p => p.url), idx: pi })}
+                                >
+                                  <img src={ph.url} alt={ph.name} loading="lazy" />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="letter-rule letter-rule-thin" />
                     {commentsJSX}
