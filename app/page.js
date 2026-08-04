@@ -348,6 +348,32 @@ export default function Home() {
     }
   };
 
+  // ─── Lightbox swipe gesture ───
+  const lightboxTouch = useRef({ startX: 0, startY: 0 });
+
+  const onLightboxTouchStart = (e) => {
+    lightboxTouch.current.startX = e.touches[0].clientX;
+    lightboxTouch.current.startY = e.touches[0].clientY;
+  };
+
+  const onLightboxTouchEnd = (e) => {
+    if (!lightbox || !lightbox.urls || lightbox.urls.length <= 1) return;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const dx = endX - lightboxTouch.current.startX;
+    const dy = endY - lightboxTouch.current.startY;
+
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
+      if (dx < 0) {
+        // Swipe left -> Next image
+        setLightbox(prev => prev ? { ...prev, idx: (prev.idx + 1) % prev.urls.length } : null);
+      } else {
+        // Swipe right -> Previous image
+        setLightbox(prev => prev ? { ...prev, idx: (prev.idx - 1 + prev.urls.length) % prev.urls.length } : null);
+      }
+    }
+  };
+
   // ─── Derived data ───
   const photoFeedPosts = feedPosts.filter(p => p.type === 'photo');
   const stripPhotos = feedPosts.filter(p => p.type === 'photo');
@@ -411,12 +437,17 @@ export default function Home() {
     return groups;
   })();
 
-  // Most liked (from all photo posts)
-  const mostLikedPost = photoFeedPosts.reduce((best, p) =>
-    (p.likeCount > 0 && p.likeCount > (best?.likeCount || 0)) ? p : best, null);
+  // Display posts: pin most liked item to top seamlessly without banner
+  const displayPosts = (() => {
+    if (!groupedFeedPosts.length) return [];
+    const topLiked = groupedFeedPosts.reduce((best, g) =>
+      (g.likeCount > 0 && g.likeCount > (best?.likeCount || 0)) ? g : best, null);
 
-  // Display posts: use grouped, most-liked pinned first if applicable
-  const displayPosts = groupedFeedPosts;
+    if (!topLiked) return groupedFeedPosts;
+    const topKey = topLiked.groupId || topLiked.sessionId || topLiked.url || topLiked.timestamp;
+    const rest = groupedFeedPosts.filter(g => (g.groupId || g.sessionId || g.url || g.timestamp) !== topKey);
+    return [topLiked, ...rest];
+  })();
 
   return (
     <>
@@ -615,7 +646,6 @@ export default function Home() {
                   <div className="letter-paper">
                     <div className="letter-rule" />
                     <div className="letter-from-line">
-                      <span className="letter-from-label">Gönderen: </span>
                       <span className="letter-sender-name">{post.name}</span>
                     </div>
                     <div className="letter-date-line">{timeAgo(post.timestamp)}</div>
@@ -640,7 +670,6 @@ export default function Home() {
                   <div className="letter-paper">
                     <div className="letter-rule" />
                     <div className="letter-from-line">
-                      <span className="letter-from-label">Gönderen: </span>
                       <span className="letter-sender-name">{post.name}</span>
                     </div>
                     <div className="letter-date-line">
@@ -715,7 +744,6 @@ export default function Home() {
                 <div className="letter-paper">
                   <div className="letter-rule" />
                   <div className="letter-from-line">
-                    <span className="letter-from-label">Gönderen: </span>
                     <span className="letter-sender-name">{post.name}</span>
                   </div>
                   <div className="letter-date-line">{timeAgo(post.timestamp)}</div>
@@ -745,9 +773,14 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ─── LIGHTBOX ─── */}
+      {/* ─── LIGHTBOX (Swipeable full-screen viewer) ─── */}
       {lightbox && (
-        <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
+        <div
+          className="lightbox-overlay"
+          onClick={() => setLightbox(null)}
+          onTouchStart={onLightboxTouchStart}
+          onTouchEnd={onLightboxTouchEnd}
+        >
           <button className="lightbox-close" onClick={() => setLightbox(null)}>✕</button>
           <div className="lightbox-img-wrap" onClick={e => e.stopPropagation()}>
             <img
@@ -755,21 +788,6 @@ export default function Home() {
               alt=""
               className="lightbox-img"
             />
-            {lightbox.urls.length > 1 && (
-              <div className="lightbox-nav">
-                <button
-                  className="lightbox-prev"
-                  onClick={e => { e.stopPropagation(); setLightbox(prev => ({ ...prev, idx: (prev.idx - 1 + prev.urls.length) % prev.urls.length })); }}
-                  disabled={lightbox.urls.length <= 1}
-                >‹</button>
-                <span className="lightbox-counter">{lightbox.idx + 1} / {lightbox.urls.length}</span>
-                <button
-                  className="lightbox-next"
-                  onClick={e => { e.stopPropagation(); setLightbox(prev => ({ ...prev, idx: (prev.idx + 1) % prev.urls.length })); }}
-                  disabled={lightbox.urls.length <= 1}
-                >›</button>
-              </div>
-            )}
           </div>
         </div>
       )}
