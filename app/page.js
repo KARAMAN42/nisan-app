@@ -57,6 +57,17 @@ export default function Home() {
   // ─── Stacked polaroid & lightbox state ───
   const [expandedStacks, setExpandedStacks] = useState({}); // sessionId -> bool
   const [lightbox, setLightbox] = useState(null); // { urls, idx }
+  const stackTimersRef = useRef({});
+
+  const expandStack = useCallback((sid) => {
+    if (stackTimersRef.current[sid]) clearTimeout(stackTimersRef.current[sid]);
+    setExpandedStacks(prev => ({ ...prev, [sid]: true }));
+    stackTimersRef.current[sid] = setTimeout(() => {
+      setExpandedStacks(prev => ({ ...prev, [sid]: false }));
+      delete stackTimersRef.current[sid];
+    }, 4500);
+  }, []);
+
 
   // Init visitor ID
   useEffect(() => {
@@ -643,7 +654,7 @@ export default function Home() {
                       /* Single photo */
                       <div className="polaroid-wrap" onClick={() => setLightbox({ urls: [photos[0].url], idx: 0 })}>
                         <div className="polaroid-frame polaroid-frame--clickable">
-                          <img src={photos[0].url} alt={post.name} loading="lazy" />
+                          <img src={photos[0].url} alt={post.name} />
                           <div className="polaroid-caption">{post.name}</div>
                         </div>
                       </div>
@@ -654,7 +665,7 @@ export default function Home() {
                           // Stacked pile - show overlapping tilted cards
                           <div
                             className="polaroid-pile"
-                            onClick={() => setExpandedStacks(prev => ({ ...prev, [sid]: true }))}
+                            onClick={() => expandStack(sid)}
                           >
                             {photos.slice(0, Math.min(4, photos.length)).map((ph, pi) => (
                               <div
@@ -667,7 +678,7 @@ export default function Home() {
                                   '--delay': `${(pi * 0.8).toFixed(1)}s`
                                 }}
                               >
-                                <img src={ph.url} alt={ph.name} loading="lazy" />
+                                <img src={ph.url} alt={ph.name} />
                               </div>
                             ))}
                             <div className="polaroid-pile-hint">
@@ -676,27 +687,16 @@ export default function Home() {
                           </div>
                         ) : (
                           // Expanded grid / fan of photos
-                          <div>
-                            <div className="polaroid-fan-header">
-                              <span style={{ fontSize: '0.8rem', color: '#9a7040', fontStyle: 'italic' }}>{photos.length} fotoğraf:</span>
-                              <button
-                                className="polaroid-collapse-btn"
-                                onClick={() => setExpandedStacks(prev => ({ ...prev, [sid]: false }))}
+                          <div className="polaroid-fan">
+                            {photos.map((ph, pi) => (
+                              <div
+                                key={pi}
+                                className="polaroid-fan-item"
+                                onClick={() => setLightbox({ urls: photos.map(p => p.url), idx: pi })}
                               >
-                                Daralt ▴
-                              </button>
-                            </div>
-                            <div className="polaroid-fan">
-                              {photos.map((ph, pi) => (
-                                <div
-                                  key={pi}
-                                  className="polaroid-fan-item"
-                                  onClick={() => setLightbox({ urls: photos.map(p => p.url), idx: pi })}
-                                >
-                                  <img src={ph.url} alt={ph.name} loading="lazy" />
-                                </div>
-                              ))}
-                            </div>
+                                <img src={ph.url} alt={ph.name} />
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>

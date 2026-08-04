@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --color-white: #ffffff;
   --color-black: #1a1a1a;
   --color-gray: #666666;
@@ -570,11 +570,11 @@ body {
 /* ─── LETTER CARD ─── */
 .letter-card {
   margin: 0 0.9rem 1.4rem;
-  animation: letterFloat 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: letterFloat 0.2s ease-out both;
 }
 
 @keyframes letterFloat {
-  0%   { opacity: 0; transform: translateY(20px); }
+  0%   { opacity: 0; transform: translateY(12px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
@@ -698,7 +698,9 @@ body {
   border-radius: 4px;
   animation: floatPile 4s ease-in-out infinite;
   animation-delay: var(--delay, 0s);
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow 0.2s ease;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .polaroid-pile:hover .polaroid-pile-item {
@@ -744,39 +746,17 @@ body {
 }
 
 /* ─── EXPANDED FAN / GRID ─── */
-.polaroid-fan-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.3rem 0;
-  margin-bottom: 0.4rem;
-}
-
-.polaroid-collapse-btn {
-  background: #f2f2f7;
-  border: none;
-  border-radius: 20px;
-  padding: 0.25rem 0.75rem;
-  font-family: var(--font-body), sans-serif;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.polaroid-collapse-btn:hover { background: #e5e5ea; }
-
 .polaroid-fan {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 12px;
   padding: 0.4rem 0 0.6rem;
-  animation: fanOpen 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fanOpen 0.16s ease-out both;
+  will-change: transform, opacity;
 }
 
 @keyframes fanOpen {
-  0% { opacity: 0; transform: scale(0.92); }
+  0% { opacity: 0; transform: scale(0.96); }
   100% { opacity: 1; transform: scale(1); }
 }
 
@@ -785,9 +765,10 @@ body {
   padding: 6px 6px 22px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
   border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 4px;
+  will-change: transform;
 }
 
 .polaroid-fan-item:hover {
