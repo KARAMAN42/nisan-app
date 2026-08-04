@@ -425,7 +425,7 @@ export default function Home() {
       <div className={`feed-overlay${feedOpen ? ' open' : ''}`}>
         <div className="feed-header">
           <div>
-            <div className="feed-header-title">Nişan Anları 💌</div>
+            <div className="feed-header-title">Nişan Anları</div>
             <div className="feed-header-sub">{feedPosts.length} mektup · Yusuf & Şevval</div>
           </div>
           <button className="feed-close-btn" onClick={closeFeed}>✕</button>
@@ -459,8 +459,7 @@ export default function Home() {
                     <span style={{ fontSize: '0.9rem' }}>{post.isLiked ? 'Beğenildi' : 'Beğen'}</span>
                   </button>
                   <button className="feed-comment-btn" onClick={() => toggleComments(postId)}>
-                    <span>💬</span>
-                    <span>{post.commentCount > 0 ? post.commentCount : ''}</span>
+                    {post.commentCount > 0 && <span>{post.commentCount}</span>}
                     <span style={{ fontSize: '0.9rem' }}>Yanıtla</span>
                   </button>
                 </div>
@@ -472,9 +471,8 @@ export default function Home() {
                       <div className="feed-comments-list">
                         {(post.comments || []).map((c, j) => (
                           <div key={j} className="feed-comment-item">
-                            <div className="feed-comment-avatar">{(c.name || 'M').charAt(0)}</div>
                             <div style={{ flex: 1 }}>
-                              <span className="feed-comment-name">{c.name} </span>
+                              <span className="feed-comment-name">{c.name} — </span>
                               <span className="feed-comment-text">{c.text}</span>
                               <div className="feed-comment-time">{timeAgo(c.timestamp)}</div>
                             </div>
@@ -517,75 +515,49 @@ export default function Home() {
             // ─── GUESTBOOK LETTER ───
             if (post.type === 'guestbook') {
               return (
-                <div key={`gb-${i}`} className="letter-card guestbook-card" style={{ animationDelay: `${i * 0.06}s` }}>
-                  {/* Envelope header */}
-                  <div className="letter-envelope" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div className="wax-seal wax-seal-letter">✉️</div>
-                    <div style={{ flex: 1 }}>
-                      <div className="letter-sender-name">{post.name}</div>
-                      <div className="letter-sender-time">Anı Defteri · {timeAgo(post.timestamp)}</div>
+                <div key={`gb-${i}`} className="letter-card guestbook-card" style={{ animationDelay: `${i * 0.07}s` }}>
+                  <div className="letter-paper">
+                    <div className="letter-rule" />
+                    <div className="letter-from-line">
+                      <span className="letter-from-label">Gönderen: </span>
+                      <span className="letter-sender-name">{post.name}</span>
                     </div>
-                    {/* Postage stamp */}
-                    <div style={{ width: 32, height: 40, background: 'linear-gradient(145deg, #d4a8c7, #c48fb8)', borderRadius: 2, border: '1.5px solid rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', boxShadow: '1px 2px 4px rgba(0,0,0,0.12)', flexShrink: 0 }}>
-                      💌
-                    </div>
-                  </div>
-                  {/* Paper body */}
-                  <div className="letter-body">
+                    <div className="letter-date-line">{timeAgo(post.timestamp)}</div>
+                    <div className="letter-rule letter-rule-thin" />
                     <div className="guestbook-message">{post.message}</div>
+                    <div className="letter-rule letter-rule-thin" />
                     {commentsJSX}
                   </div>
-                  {/* Footer */}
-                  <div style={{ height: 4, background: 'linear-gradient(90deg, #f5e6d0, #eedfc8)', borderRadius: '0 0 18px 18px', border: '1px solid rgba(180,140,100,0.3)', borderTop: 'none' }} />
                 </div>
               );
             }
 
             // ─── PHOTO LETTER ───
             return (
-              <div key={i} className="letter-card" style={{ animationDelay: `${i * 0.06}s` }}>
-                {/* Most liked badge */}
-                {post.isMostLiked && (
-                  <div className="most-liked-badge">💖 En Çok Sevilen An</div>
-                )}
-
-                {/* Envelope header */}
-                <div className="letter-envelope" style={{ display: 'flex', alignItems: 'center', gap: 10, borderRadius: post.isMostLiked ? '0' : '18px 18px 0 0' }}>
-                  <div className="wax-seal wax-seal-photo">📸</div>
-                  <div style={{ flex: 1 }}>
-                    <div className="letter-sender-name">{post.name}</div>
-                    <div className="letter-sender-time">{timeAgo(post.timestamp)}</div>
+              <div key={i} className="letter-card" style={{ animationDelay: `${i * 0.07}s` }}>
+                <div className="letter-paper">
+                  <div className="letter-rule" />
+                  <div className="letter-from-line">
+                    <span className="letter-from-label">Gönderen: </span>
+                    <span className="letter-sender-name">{post.name}</span>
                   </div>
-                  {/* Postage stamp */}
-                  <div style={{ width: 32, height: 40, background: 'linear-gradient(145deg, #f4a56a, #e8874a)', borderRadius: 2, border: '1.5px solid rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', boxShadow: '1px 2px 4px rgba(0,0,0,0.12)', flexShrink: 0 }}>
-                    🌸
-                  </div>
-                </div>
+                  <div className="letter-date-line">{timeAgo(post.timestamp)}</div>
+                  <div className="letter-rule letter-rule-thin" />
 
-                {/* Paper body */}
-                <div className="letter-body">
-                  {/* Handwritten message */}
                   {post.message && (
-                    <div className="letter-message">
-                      <span style={{ color: '#c4a882', marginRight: '4px', fontFamily: 'var(--font-dancing), cursive', fontSize: '1.3rem' }}>"</span>
-                      {post.message}
-                      <span style={{ color: '#c4a882', marginLeft: '4px', fontFamily: 'var(--font-dancing), cursive', fontSize: '1.3rem' }}>"</span>
-                    </div>
+                    <div className="letter-message">{post.message}</div>
                   )}
 
-                  {/* Polaroid photo */}
                   <div className="polaroid-wrap">
                     <div className="polaroid-frame">
                       <img src={post.url} alt={post.name} loading="lazy" />
-                      <div className="polaroid-caption">{post.name} · {timeAgo(post.timestamp)}</div>
+                      <div className="polaroid-caption">{post.name}</div>
                     </div>
                   </div>
 
+                  <div className="letter-rule letter-rule-thin" />
                   {commentsJSX}
                 </div>
-
-                {/* Footer */}
-                <div style={{ height: 4, background: 'linear-gradient(90deg, #f5e6d0, #eedfc8)', borderRadius: '0 0 18px 18px', border: '1px solid rgba(180,140,100,0.3)', borderTop: 'none' }} />
               </div>
             );
           })}
