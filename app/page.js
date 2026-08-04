@@ -54,6 +54,10 @@ export default function Home() {
   const [gbSuccess, setGbSuccess] = useState(false);
   const [gbError, setGbError] = useState('');
 
+  // ─── Stacked polaroid & lightbox state ───
+  const [expandedStacks, setExpandedStacks] = useState({}); // sessionId -> bool
+  const [lightbox, setLightbox] = useState(null); // { urls, idx }
+
   // Init visitor ID
   useEffect(() => {
     let vid = localStorage.getItem('nisan-vid');
@@ -337,24 +341,55 @@ export default function Home() {
   const photoFeedPosts = feedPosts.filter(p => p.type === 'photo');
   const stripPhotos = feedPosts.filter(p => p.type === 'photo');
   
-  // Sürekli akan animasyon için fotoğrafları çoğalt
+  // Marquee strip photos
   let basePhotos = [];
   if (stripPhotos.length > 0) {
     const repeats = Math.max(2, Math.ceil(12 / stripPhotos.length));
-    for (let i = 0; i < repeats; i++) {
-      basePhotos = [...basePhotos, ...stripPhotos];
-    }
+    for (let i = 0; i < repeats; i++) basePhotos = [...basePhotos, ...stripPhotos];
   }
-  // Kusursuz döngü için dizinin tam 2 katı olması ve -%50 kayması gerekir
   const loopPhotos = basePhotos.length > 0 ? [...basePhotos, ...basePhotos] : [];
 
-  // Most liked photo (only count if has ≥1 like)
-  const mostLikedPost = photoFeedPosts.reduce((best, p) => (p.likeCount > 0 && p.likeCount > (best?.likeCount || 0)) ? p : best, null);
+  // Group photo posts by sessionId; solo posts (no sessionId or single) stay as-is
+  const groupedFeedPosts = (() => {
+    const result = [];
+    const sessionMap = {}; // sessionId -> index in result
+    for (const post of feedPosts) {
+      if (post.type === 'photo' && post.sessionId) {
+        if (sessionMap[post.sessionId] !== undefined) {
+          // Add to existing group
+          result[sessionMap[post.sessionId]].photos.push(post);
+        } else {
+          // New group
+          sessionMap[post.sessionId] = result.length;
+          result.push({
+            type: 'photoGroup',
+            sessionId: post.sessionId,
+            name: post.name,
+            message: post.message,
+            timestamp: post.timestamp,
+            sessionTimestamp: post.sessionTimestamp || post.timestamp,
+            photos: [post],
+            // aggregate likes/comments from representative (first) photo
+            likeCount: post.likeCount,
+            isLiked: post.isLiked,
+            commentCount: post.commentCount,
+            comments: post.comments,
+            url: post.url, // for like/comment postId
+          });
+        }
+      } else {
+        result.push(post);
+      }
+    }
+    return result;
+  })();
 
-  // Feed display: most liked pinned first (if exists), then time order
-  const displayPosts = mostLikedPost
-    ? [{ ...mostLikedPost, isMostLiked: true }, ...feedPosts.filter(p => p.url !== mostLikedPost.url)]
-    : feedPosts;
+  // Most liked (from all photo posts)
+  const mostLikedPost = photoFeedPosts.reduce((best, p) =>
+    (p.likeCount > 0 && p.likeCount > (best?.likeCount || 0)) ? p : best, null);
+
+  // Display posts: use grouped, most-liked pinned first if applicable
+  const displayPosts = groupedFeedPosts;
 
   return (
     <>
@@ -566,7 +601,70 @@ export default function Home() {
               );
             }
 
-            // ─── PHOTO LETTER ───
+            // ─── PHOTO GROUP – stacked polaroids ───
+            if (post.type === 'photoGroup') {
+              const sid = post.sessionId;
+              const isExpanded = !!expandedStacks[sid];
+              const photos = post.photos;
+              const stackAngles = [-6, 4, -2, 5, -3, 2]; // rotation per card
+              return (
+                <div key={`sg-${i}`} className="letter-card" style={{ animationDelay: `${i * 0.07}s` }}>
+                  <div className="letter-paper">
+                    <div className="letter-rule" />
+                    <div className="letter-from-line">
+                      <span className="letter-from-label">Gönderen: </span>
+                      <span className="letter-sender-name">{post.name}</span>
+                    </div>
+                    <div className="letter-date-line">{timeAgo(post.timestamp)} · {photos.length} fotoğraf</div>
+                    <div className="letter-rule letter-rule-thin" />
+
+                    {post.message && <div className="letter-message">{post.message}</div>}
+
+                    {/* STACKED or FANNED polaroids */}
+                    <div
+                      className={`polaroid-stack${isExpanded ? ' expanded' : ''}`}
+                      onClick={() => !isExpanded && setExpandedStacks(prev => ({ ...prev, [sid]: true }))}
+                    >
+                      {!isExpanded ? (
+                        // Stacked pile - show up to 3 overlapping
+                        <div className="polaroid-pile">
+                          {photos.slice(0, Math.min(3, photos.length)).map((ph, pi) => (
+                            <div
+                              key={pi}
+                              className="polaroid-pile-item"
+                              style={{ '--rot': `${stackAngles[pi] || 0}deg`, '--z': photos.length - pi, '--offset': `${pi * 4}px` }}
+                            >
+                              <img src={ph.url} alt={ph.name} loading="lazy" />
+                            </div>
+                          ))}
+                          <div className="polaroid-pile-hint">
+                            <span>📸 {photos.length} fotoğraf — açmak için dokun</span>
+                          </div>
+                        </div>
+                      ) : (
+                        // Fanned / expanded grid
+                        <div className="polaroid-fan">
+                          {photos.map((ph, pi) => (
+                            <div
+                              key={pi}
+                              className="polaroid-fan-item"
+                              onClick={(e) => { e.stopPropagation(); setLightbox({ urls: photos.map(p => p.url), idx: pi }); }}
+                            >
+                              <img src={ph.url} alt={ph.name} loading="lazy" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="letter-rule letter-rule-thin" />
+                    {commentsJSX}
+                  </div>
+                </div>
+              );
+            }
+
+            // ─── PHOTO LETTER (single photo) ───
             return (
               <div key={i} className="letter-card" style={{ animationDelay: `${i * 0.07}s` }}>
                 <div className="letter-paper">
@@ -582,8 +680,8 @@ export default function Home() {
                     <div className="letter-message">{post.message}</div>
                   )}
 
-                  <div className="polaroid-wrap">
-                    <div className="polaroid-frame">
+                  <div className="polaroid-wrap" onClick={() => setLightbox({ urls: [post.url], idx: 0 })}>
+                    <div className="polaroid-frame polaroid-frame--clickable">
                       <img src={post.url} alt={post.name} loading="lazy" />
                       <div className="polaroid-caption">{post.name}</div>
                     </div>
@@ -598,6 +696,35 @@ export default function Home() {
           <div style={{ height: '4rem' }} />
         </div>
       </div>
+
+      {/* ─── LIGHTBOX ─── */}
+      {lightbox && (
+        <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
+          <button className="lightbox-close" onClick={() => setLightbox(null)}>✕</button>
+          <div className="lightbox-img-wrap" onClick={e => e.stopPropagation()}>
+            <img
+              src={lightbox.urls[lightbox.idx]}
+              alt=""
+              className="lightbox-img"
+            />
+            {lightbox.urls.length > 1 && (
+              <div className="lightbox-nav">
+                <button
+                  className="lightbox-prev"
+                  onClick={e => { e.stopPropagation(); setLightbox(prev => ({ ...prev, idx: (prev.idx - 1 + prev.urls.length) % prev.urls.length })); }}
+                  disabled={lightbox.urls.length <= 1}
+                >‹</button>
+                <span className="lightbox-counter">{lightbox.idx + 1} / {lightbox.urls.length}</span>
+                <button
+                  className="lightbox-next"
+                  onClick={e => { e.stopPropagation(); setLightbox(prev => ({ ...prev, idx: (prev.idx + 1) % prev.urls.length })); }}
+                  disabled={lightbox.urls.length <= 1}
+                >›</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ─── BACKDROP ─── */}
       <div className={`sheet-backdrop ${(sheetOpen || gbOpen) ? "visible" : ""}`} onClick={() => { closeSheet(); setGbOpen(false); }} />

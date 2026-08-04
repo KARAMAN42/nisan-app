@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { db, bucket } from '../../../lib/firebase';
-import { FieldValue } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -17,13 +16,17 @@ export async function POST(request) {
     const name = (guestName || 'Misafir').trim().substring(0, 60);
     const msg = (message || '').trim().substring(0, 200);
     const uploadedPhotos = [];
+    // All photos in this upload share the same sessionId and base timestamp
+    const sessionId = `session_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+    const sessionTimestamp = Date.now();
 
     // Upload each image
-    for (const { dataUrl, filename } of images) {
+    for (let idx = 0; idx < images.length; idx++) {
+      const { dataUrl, filename } = images[idx];
       const base64Data = dataUrl.split(',')[1];
       const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
       const ext = mimeType.includes('png') ? 'png' : 'jpg';
-      const ts = Date.now();
+      const ts = sessionTimestamp + idx; // slight offset so order is preserved
       const buffer = Buffer.from(base64Data, 'base64');
       
       const filePath = `nisan/${ts}_${Math.floor(Math.random()*1000)}.${ext}`;
@@ -33,7 +36,6 @@ export async function POST(request) {
         contentType: mimeType,
       });
 
-      // Get a long-lived signed URL to bypass security rules
       const [url] = await file.getSignedUrl({
         action: 'read',
         expires: '01-01-2100'
@@ -45,15 +47,16 @@ export async function POST(request) {
         name,
         message: msg,
         timestamp: ts,
+        sessionId,          // <-- group key
+        sessionTimestamp,   // <-- used for sorting the group
         likes: [],
         comments: []
       });
     }
 
-    // Add to Firestore using ArrayUnion to prepend/append
+    // Add to Firestore
     const feedRef = db.collection('appData').doc('feed');
     
-    // Using a transaction to ensure we prepend correctly or we can just read and write
     await db.runTransaction(async (t) => {
       const doc = await t.get(feedRef);
       if (!doc.exists) {
@@ -69,6 +72,7 @@ export async function POST(request) {
       count: uploadedPhotos.length,
       url: uploadedPhotos[0]?.url,
       urls: uploadedPhotos.map(p => p.url),
+      sessionId,
     });
 
   } catch (error) {
